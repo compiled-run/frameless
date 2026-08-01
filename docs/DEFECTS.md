@@ -1989,7 +1989,8 @@ framework prop table.
 
 **THE PER-LANE TABLE. Question (1) — what does the emitter print? — was asked of
 the REAL emitters on a probe module by T005 and REPRODUCED INDEPENDENTLY by T011.
-Question (2) — does it fire? — was asked in chromium.**
+Question (2) — does it fire? — was asked in chromium, and T003 re-asked
+the DRAG half of it in chromium AND firefox with the same answer in every lane.**
 
 | lane | authored `onKeyDown` prints | binds by | (2) FIRES? | measured on |
 | --- | --- | --- | --- | --- |
@@ -2002,19 +2003,26 @@ Question (2) — does it fire? — was asked in chromium.**
 
 **WHAT IS MEASURED HERE AND WHAT IS INFERRED, stated rather than blurred.**
 T005 drove `dragstart`, `dragover`, `drop`, `dragend` and `pointerdown` — not
-`keydown` — in six real browsers, in two arms, and **FOUR LANES COMPLETED AN
+`keydown` — in **six real browser lanes** (**one engine**, six shells; T003 read
+`docs/goals/frameless-app-axes-v1/notes/T005-board.md` to fix the referent,
+because *"six real browsers"* as this repository writes it has always meant six
+**lanes**, not six **engines**, and in the one document about engines that
+ambiguity is the whole problem), in two arms, and **FOUR LANES COMPLETED AN
 END-TO-END HTML5 DRAG WITH A REAL MOUSE** (solid, qwik, svelte, vue); angular
 fired all five synthetically while that probe page produced no native drag at all,
 which T005 recorded as unresolved rather than settled.
 
 > **AMENDED AGAIN BY `frameless-app-fidelity-v1` T008, ON A SHIPPED PAGE — IT IS
 > FIVE LANES, AND ANGULAR IS SETTLED.** T005's four is a **probe-page** number and
-> its angular row was **unresolved, not negative**. Re-measured at HEAD on the
+> its angular row was **unresolved, not negative**. Re-measured at HEAD **IN
+> CHROMIUM** — that lane is named here rather than left blank because
+> `frameless-app-fidelity-v1`'s own receipts say so five times over, each closing
+> with *"the drag remains a CHROMIUM claim in all six lanes"* — on the
 > **shipped** `/board` (`S16`), with a real native mouse drag — mouse down, twenty
 > interpolated moves, mouse up, **no synthetic `DragEvent`** — at 1600×1000, run
 > twice through all six lanes: card `t1` leaves `backlog`, lands in `todo` **and is
 > still there 1.4 s later** in **solid, qwik, svelte, vue AND ANGULAR**.
-> `[draggable="true"]` is **9 in all six lanes**, so react is not missing the
+> `[draggable="true"]` is **9 in all six lanes** (in chromium), so react is not missing the
 > attribute — it is missing the listener, and its card never reaches
 > `data-dragging="yes"` while react-dom logs *"Invalid event handler property
 > `onDragstart` / `onDragend` / `onDragover`"*. **The reading can fail:** the
@@ -2029,6 +2037,37 @@ which T005 recorded as unresolved rather than settled.
 > a mid-drag DOM read and half without, which **refutes** the obvious guess that
 > the instrument caused it. The five-lane claim is stated with that reading
 > attached rather than averaged away.
+
+> **THE BROWSER, NAMED AT LAST — `frameless-guard-and-coverage-v1` T003.**
+> Everything in the two blocks above was taken **in Chromium and in Chromium
+> only**, and five consecutive cards recorded a second engine as unmeasured
+> without closing it. It is closed here. One harness, one session, both engines:
+> **Chromium 145.0.7632.6** and **Firefox 146.0.1**, at 1600×1000, on the shipped
+> `/board` in all six lanes, with two gesture shapes per lane per engine —
+> Playwright's `locator.dragTo` **and** a raw native mouse drag of twenty
+> interpolated moves.
+>
+> **FIREFOX AGREES WITH CHROMIUM IN ALL SIX LANES, ON EVERY READING.** `t1` leaves
+> `backlog`, lands in `todo` and is still there 1.4 s later in **solid, qwik,
+> svelte, vue and angular**; **react is inert** and logs the same three *"Invalid
+> event handler property"* warnings; `[draggable="true"]` is **9 in all six lanes
+> in both engines**; a `MutationObserver` on `data-dragging` sees `t1` reach
+> `'yes'` in the five and never in react; and the negative control — the same
+> gesture released over the sidebar — moves nothing in all six in both engines,
+> `dragstart` reaching the document while `drop` never does. Both gesture shapes
+> agree everywhere.
+>
+> **This is a MEASUREMENT and it is read as one.** Agreement is what entry 15's own
+> diagnosis predicts — a binding **name** is engine independent — so the result
+> confirms the diagnosis rather than the harness. Had the engines disagreed that
+> would have been a result too, and **not** a defect in any framework.
+>
+> **Two things this did NOT settle, stated rather than absorbed.** The qwik flake
+> above did **not** reproduce — the first-drop-from-a-fresh-page condition was
+> re-run 12 further times per engine, 13 of 13 landing in each — but a different
+> harness in a different session cannot retire another one's flake, so the
+> recorded limit stands. And the `keydown` row of the table above is **still
+> unrun in any engine**: T003 drove the drag names, not `keydown`.
 
 T011 reproduced the emitter
 half for `keydown` in all six lanes and the runtime half **for react only**. That
@@ -2508,7 +2547,7 @@ matrix proved green rather than from the error message's claim.
 | 12  | **product defect — CLOSED**     | **removed**, not contained: the `await` survives re-analysis (T047), the final-sync retention is **segmented at the suspension boundary** and post-await reads of the cell being written are lowered to React's **functional updater** (T003). Witnessed before/after against real `react-dom`, with the calibration arm held fixed as the control, and **zero generated bytes moved** across three proven-real regeneration tiers | none for the defect — a **v-limit** (post-await read of a *different* cell) is recorded in 12.2 with its triggering authoring and its own registered test. The **served payload** landed with S8 (T004): six lanes byte-identical, and the react mutant is the pre-T003 lowering restored verbatim, RED at three of five readings |
 | 13  | **product defect — OPEN**       | **half removed**: react's three names are repaired in `jsxName` and pinned against react-dom's own rejections; `hidden` and `readonly` are **contained** — excluded from `LANE_PORTABLE_BOOLEAN_ATTRIBUTES`, unrepairable from any emitter, because both fail inside `@qwik.dev/core`'s own `isBooleanAttr` | the lift trigger — a qwik release whose `isBooleanAttr` admits `hidden` and stops gating `readonly` on `key in element`, at which point the clause-5 matrix goes red and the portable set widens |
 | 14  | **product defect — CLOSED**     | **removed**, not contained: a class with an async handler injects `ChangeDetectorRef` and every suspension segment after the first ends with `markForCheck()` (T004). Found by a **served payload** and by nothing else, with the diagnosis measured — one extra click made the stale DOM jump to the correct value | none for the defect — nested-function writes are NOT covered and the pass says so; no corpus authoring produces one |
-| 15  | **product defect — OPEN, REACT ONLY (amended)** | **not contained** — no refusal anywhere: the casing is destroyed in the compiler (`jsxEventName` in `packages/compiler/src/build.ts`), so no emitter can spell `onKeyDown` **as react-dom needs it** and react's emitted binding is inert at runtime. **The other five lanes bind by the DOM event name, which is what the flattening produces, and they FIRE** — measured in browsers (T005) with the react row re-measured (T011), and re-measured a third time on the SHIPPED `/board` page by `frameless-app-fidelity-v1` T008, where a real native mouse drag moves a card in **five** lanes — **angular included, which T005 had left unresolved** — and moves nothing in react. The residue that is genuinely six-lane is narrower: a flattened name that is not a real DOM event, such as `doubleclick` from `onDoubleClick` | a per-lane spelling map **for react** (`dblclick` → React's `onDoubleClick` shares no stem with it), **and** a compiler-side refusal so `/^on[A-Z]/` stops accepting a name it is about to flatten |
+| 15  | **product defect — OPEN, REACT ONLY (amended)** | **not contained** — no refusal anywhere: the casing is destroyed in the compiler (`jsxEventName` in `packages/compiler/src/build.ts`), so no emitter can spell `onKeyDown` **as react-dom needs it** and react's emitted binding is inert at runtime. **The other five lanes bind by the DOM event name, which is what the flattening produces, and they FIRE** — measured in browser lanes (T005) with the react row re-measured (T011), and re-measured a third time on the SHIPPED `/board` page by `frameless-app-fidelity-v1` T008, where a real native mouse drag moves a card in **five** lanes — **angular included, which T005 had left unresolved** — and moves nothing in react. **ALL THREE OF THOSE WERE CHROMIUM, AND `frameless-guard-and-coverage-v1` T003 ADDED THE SECOND ENGINE:** driven again in **Chromium 145.0.7632.6 and Firefox 146.0.1** through one harness in one session, **Firefox agrees with Chromium in all six lanes** on every reading — the five move and stay, react is inert with the same three warnings, `[draggable="true"]` is 9 in all six in both, and a drop on the sidebar is refused in all six in both. The **`keydown`** row of the per-lane table is still unrun in **any** engine. The residue that is genuinely six-lane is narrower: a flattened name that is not a real DOM event, such as `doubleclick` from `onDoubleClick` | a per-lane spelling map **for react** (`dblclick` → React's `onDoubleClick` shares no stem with it), **and** a compiler-side refusal so `/^on[A-Z]/` stops accepting a name it is about to flatten |
 | 16  | **not a defect**                | nothing to change in any emitter — the Svelte a11y refusals are correct and canonical TodoMVC's clickable `<label>` is the anti-pattern | **nothing** — rendered via a marked supplement (T007), vendored bytes untouched |
 | 18  | **product defect — CLOSED**     | **removed**, not contained: `appendPersistenceWrites` reads the committed accessor instead of re-evaluating a cloned setter argument, and grows a plain-`let` arm so a handler-only persisted cell writes back (T016). Witnessed in chromium before and after on the same served bytes — before, Solid stored `"all"` while the screen read `done` and **forgot on reload**; after, it survives, matching React | none for the defect — a **contract limit** is recorded above: a handler-only record has `seed.lowering: 'none'`, so it is write-only until something reads the cell in render |
 | 19  | **product defect — CLOSED, SVELTE ONLY** | **removed**, not contained: `quotableStringProp` prints a plain string-literal component prop as the quoted attribute, and `generated-composition/M2-page.svelte` was REGENERATED (T018). Equivalence measured through svelte's own compiler — byte-identical `js.code` in client and server, dev and prod, including the entity round-trip | none for the defect — but the instrument finding stands on its own: **`pnpm lint` cannot see `svelte/no-useless-mustaches` at any strength**, measured with the defect planted back, so only the svelte gate's own ESLint reports it |

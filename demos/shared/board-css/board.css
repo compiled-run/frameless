@@ -556,13 +556,24 @@ body:has(.tb) {
  * read "this page is the DRAG scenario and it has no drag". THAT IS NOW FALSE
  * AND WAS ALREADY FALSE WHEN THE DRAG LANDED - the sheet below it grew a
  * `[draggable='true']` cursor rule and a `[data-dragging='yes']` highlight in
- * the same commit, and this block was left behind. RE-MEASURED AT HEAD with a
- * REAL NATIVE MOUSE DRAG (no synthetic DragEvent) at 1600x1000, card `t1` from
- * `backlog` onto `todo`: it moves AND STAYS in solid, qwik, svelte, vue and
+ * the same commit, and this block was left behind. RE-MEASURED AT HEAD IN TWO
+ * ENGINES - CHROMIUM 145.0.7632.6 AND FIREFOX 146.0.1 - with a REAL NATIVE HTML5
+ * DRAG (no synthetic DragEvent) at 1600x1000, card `t1` from `backlog` onto
+ * `todo`: it moves AND IS STILL THERE 1.4s LATER in solid, qwik, svelte, vue and
  * angular - FIVE LANES - and react is inert, its card never reaching
  * `data-dragging="yes"` while react-dom logs "Invalid event handler property
  * `onDragstart`/`onDragend`/`onDragover`". The same gesture dropped on the
  * sidebar is refused in all six, so the reading can fail.
+ *
+ * AND THE SPLIT IS THE LANE'S, NOT THE ENGINE'S. Until `frameless-guard-and-
+ * coverage-v1` T003 this was a CHROMIUM-ONLY claim, recorded as unmeasured in a
+ * second engine by five consecutive cards. Driven in both engines with ONE
+ * harness in ONE session, FIREFOX AGREES WITH CHROMIUM IN ALL SIX LANES on every
+ * reading above: which lane moves, that it stays, react's three warnings,
+ * `[draggable="true"]` = 9, and the refused sidebar drop. WHAT IS STILL
+ * SINGLE-ENGINE ON THIS PAGE IS EVERYTHING THIS SHEET IS FOR - the measured
+ * geometry above was read in Chromium alone and no card has re-read it in Gecko.
+ * The per-lane per-engine table is in ./README.md.
  *
  * SO THE NOTE IS NO LONGER AN APOLOGY FOR AN ABSENCE - it is the per-lane LABEL
  * for a split axis, and it is styled to be READ rather than to be decorative,
@@ -705,20 +716,25 @@ body:has(.tb) {
  * The selector is the EMITTED ATTRIBUTE, not a class, which is why it costs
  * nothing in the fixture: `draggable` is bound to a boolean expression there and
  * all six lanes serialize it to `draggable="true"`, so this rule reaches every
- * lane without any lane-specific markup. It is also a LIVE CHECK on that
- * serialization - if a lane wrote `draggable=""` or dropped the attribute, the
- * grab cursor would silently disappear in that lane alone.
+ * lane without any lane-specific markup. MEASURED IN BOTH ENGINES at T003:
+ * `document.querySelectorAll('[draggable="true"]').length` is 9 in all six
+ * lanes in Chromium 145.0.7632.6 AND in Firefox 146.0.1, so the serialization is
+ * a two-engine reading rather than a Chromium one. It is also a LIVE CHECK on
+ * that serialization - if a lane wrote `draggable=""` or dropped the attribute,
+ * the grab cursor would silently disappear in that lane alone.
  *
  * WHAT IS NOT HERE, and the fixture's constraint (13) is the reason: no drop
  * target highlight and no drag ghost. Both need a bound `class` or `style`,
  * whose lowering is unmeasured in all six lanes, and the card that shipped the
  * drag refused to reach for one. `:active` is the whole feedback.
  *
- * REACT GETS THE CURSOR AND NOT THE DRAG. `draggable="true"` is a real DOM
- * attribute and react-dom sets it, so a react card LOOKS draggable and the
- * browser will start a native drag on it - what never arrives is the
- * `dragover` listener, so no column will accept the drop. That is DEFECTS.md 15
- * on screen, and `.tb-note` on the page says so in words.
+ * REACT GETS THE CURSOR AND NOT THE DRAG, IN BOTH ENGINES. `draggable="true"` is
+ * a real DOM attribute and react-dom sets it, so a react card LOOKS draggable and
+ * the browser will start a native drag on it - what never arrives is the
+ * `dragover` listener, so no column will accept the drop. MEASURED AT T003 in
+ * Chromium 145.0.7632.6 and Firefox 146.0.1: in BOTH, `dragstart` reaches the
+ * document from a react card and NO `drop` ever does. That is DEFECTS.md 15 on
+ * screen, and `.tb-note` on the page says so in words.
  */
 .tb-card[draggable='true'] {
 	cursor: grab;
@@ -736,10 +752,13 @@ body:has(.tb) {
  * only place on the page where the drag state is visible without moving a card.
  *
  * IT IS ALSO THE ONE VISIBLE DIFFERENCE BETWEEN THE FIVE DRAGGING LANES AND
- * REACT. React never fires the flattened `onDragstart`, so `dragId` stays `''`
- * there and no card ever reaches `data-dragging="yes"` - the card lifts under
- * the cursor because the browser drags it natively, and nothing on the page
- * responds.
+ * REACT, AND IT IS THE SAME DIFFERENCE IN BOTH ENGINES. React never fires the
+ * flattened `onDragstart`, so `dragId` stays `''` there and no card ever reaches
+ * `data-dragging="yes"` - the card lifts under the cursor because the browser
+ * drags it natively, and nothing on the page responds. T003 watched this cell
+ * with a `MutationObserver` on `data-dragging` in Chromium 145.0.7632.6 and in
+ * Firefox 146.0.1: `t1` reaches `'yes'` in the other five lanes in BOTH engines
+ * and in react in NEITHER.
  */
 .tb-card[data-dragging='yes'] {
 	opacity: 0.45;

@@ -51,28 +51,53 @@ the drag landed — the same change that shipped the drag also added the
 this very sheet, and this paragraph was not updated with them. It is corrected
 here off a measurement taken at HEAD, not off a receipt.
 
-**The drag is real, and it is a FIVE-LANE claim.** Measured with a **real native
-mouse drag** — mouse down on the card, twenty interpolated moves, mouse up; no
-synthetic `DragEvent` anywhere — at 1600×1000, driving card `t1` out of
-`backlog` and onto `todo`, twice through all six lanes:
+**The drag is real, it is a FIVE-LANE claim, and it is now a TWO-ENGINE one.**
+For five cards this table named no browser and every reading behind it was taken
+in Chromium alone. `frameless-guard-and-coverage-v1` T003 drove **Chromium
+145.0.7632.6 and Firefox 146.0.1** through **one harness in one session**, at
+1600×1000, driving card `t1` out of `backlog` and onto `todo` — and the browser
+is named on every cell below because *"it works in Chromium"* may not be written
+as *"it works"*.
 
-| lane | card moved and STAYED | `data-dragging="yes"` during the gesture |
-| --- | --- | --- |
-| react | **NO — inert** | none — the card never reaches it |
-| solid | yes | `t1` |
-| qwik | yes | `t1` |
-| svelte | yes | `t1` |
-| vue | yes | `t1` |
-| angular | yes | `t1` |
+Two gestures per lane per engine, because the shape of the gesture is itself a
+recorded trap: `locator.dragTo`, and a **raw native mouse drag** — mouse down on
+the card, twenty interpolated moves, mouse up, no synthetic `DragEvent` anywhere,
+which is the shape this file's previous table was taken with. **Both shapes agree
+everywhere.** "Stayed" means the card was still in `todo` **1.4 s after the
+drop**.
 
-`document.querySelectorAll('[draggable="true"]')` returns **9 in all six lanes**,
-so react is not missing the attribute — it is missing the listener. react-dom
-says so in its own console while the gesture runs: *"Invalid event handler
-property `onDragstart` / `onDragend` / `onDragover`"*. That is `docs/DEFECTS.md`
-entry 15 on screen, and `.tb-note` on the page says which lane does which.
+| lane | Chromium: moved and STAYED | Firefox: moved and STAYED | `data-dragging="yes"` seen mid-gesture (Chromium / Firefox) |
+| --- | --- | --- | --- |
+| react | **NO — inert** | **NO — inert** | none / none — the card never reaches it |
+| solid | yes | yes | `t1` / `t1` |
+| qwik | yes | yes | `t1` / `t1` |
+| svelte | yes | yes | `t1` / `t1` |
+| vue | yes | yes | `t1` / `t1` |
+| angular | yes | yes | `t1` / `t1` |
+
+**FIREFOX AGREES WITH CHROMIUM IN EVERY LANE.** The split is the lane's, not the
+engine's — which is a *result*, not a formality: the standing reading of react's
+row was that it fails on a **binding name**, and a binding name is engine
+independent, so agreement is what that reading predicts. Nothing here is read as
+a defect in any framework.
+
+`document.querySelectorAll('[draggable="true"]')` returns **9 in all six lanes in
+both engines**, so react is not missing the attribute — it is missing the
+listener. react-dom says so in its own console while the gesture runs, in both
+engines, three times: *"Invalid event handler property `onDragstart` /
+`onDragend` / `onDragover`"*. That is `docs/DEFECTS.md` entry 15 on screen, and
+`.tb-note` on the page says which lane does which.
 
 **The reading can fail.** The identical gesture released over the sidebar — not a
-drop zone — moves nothing, in **all six** lanes.
+drop zone — moves nothing, in **all six** lanes **in both engines**: `dragstart`
+reaches the document and `drop` never does.
+
+**The qwik flake did not reproduce, and that is not a refutation.** The record
+carries **one qwik drop lost in sixteen**, on the first drop from a fresh page.
+T003 re-ran exactly that condition **12 further times per engine**: 13 of 13
+landed in Chromium and 13 of 13 in Firefox. A different harness in a different
+session cannot retire another one's flake, so the recorded limit stands and this
+is a second reading beside it.
 
 **The arrows are not a leftover.** `◀`/`▶` move a card in **all six** lanes and
 are how react moves one, which is why removing them would break a working lane.
@@ -90,10 +115,19 @@ That absence still explains an absence in this file: no rule here binds a
 inline `style` binding would have been reached for, and no fixture in this corpus
 binds one.
 
-**And the reference has no drag at all.** Re-measured at HEAD on the live
-reference: `document.querySelectorAll('[draggable]')` is **0**, and
-`[draggable="true"]` is **0**. This page **overshoots** what it copies — the
-absence above is ours to explain, the drag is not.
+**And the reference has no drag at all** — measured **in one unnamed engine**,
+unlike everything above it. Re-measured at HEAD on the live reference:
+`document.querySelectorAll('[draggable]')` is **0**, and `[draggable="true"]` is
+**0**. This page **overshoots** what it copies — the absence above is ours to
+explain, the drag is not.
+
+> **That last reading names no engine and T003 DID NOT RE-TAKE IT.** It is a
+> reading of a third-party site rather than of anything this repository emits, it
+> is left exactly as the card that took it wrote it, and it is flagged here
+> instead of being silently inherited as if it were two-engine like the table
+> above. The same goes for the `◀`/`▶` **arrows**: they are a click, not a drag,
+> so T003 did not drive them, and *"all six lanes"* there is still a
+> single-engine claim.
 
 ## Cascade order is load-bearing
 
