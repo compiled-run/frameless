@@ -309,6 +309,15 @@ export const EXCLUDED_FILES = [
  * Matching is on the citation's path suffix, so a citation must name enough of
  * the path to be recognised. Anything that resolves to no repository file and
  * matches nothing here FAILS as unclassified - this list cannot grow silently.
+ *
+ * AND THE SUFFIX MATCH IS BOUNDED AT BOTH ENDS, WHICH IT WAS NOT UNTIL T005. It is
+ * consulted only AFTER `resolvesInRepo`, and never for a path anchored at a
+ * directory this repository tracks - see RULING 12, written after a citation to a
+ * NON-EXISTENT `packages/compiler/src/core.mjs` was MEASURED PASSING at HEAD on
+ * the strength of colliding with the `core.mjs` entry below. Read that ruling
+ * before adding an entry here: `integrityProblems` now refuses an entry that
+ * shadows a tracked file, that ruling 12 would make unreachable, or that this
+ * file's own detector could never match.
  */
 export const THIRD_PARTY_TARGETS = [
 	{
@@ -566,16 +575,26 @@ const FENCE = /^\s*(`{3,}|~{3,})/;
  */
 const SWEPT_SOURCE_EXTENSIONS = /\.(?:ts|tsx|js|jsx|mjs|cjs)$/;
 
-export const listTrackedSourceFiles = () =>
+/**
+ * EVERY tracked path, unfiltered. Split out of `listTrackedSourceFiles` by T005
+ * because RULING 12 asks two questions of the whole index rather than of the
+ * lexable subset: which top-level directories this repository actually has, and
+ * whether an exemption suffix shadows a real file of ANY extension. Filtering to
+ * `.ts`/`.mjs` first would have made both answers quietly too small - a `.vue`
+ * file shadowing a THIRD_PARTY_TARGETS entry is the same defect as a `.mjs` one.
+ */
+export const listTrackedFiles = () =>
 	execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 })
 		.split('\0')
-		.filter(
-			(path) =>
-				path !== '' &&
-				SWEPT_SOURCE_EXTENSIONS.test(path) &&
-				!path.includes('node_modules/') &&
-				existsSync(resolve(root, path)),
-		);
+		.filter((path) => path !== '');
+
+export const listTrackedSourceFiles = () =>
+	listTrackedFiles().filter(
+		(path) =>
+			SWEPT_SOURCE_EXTENSIONS.test(path) &&
+			!path.includes('node_modules/') &&
+			existsSync(resolve(root, path)),
+	);
 
 /**
  * Ruling 10's anti-vacuity check, and it takes its list as an argument for the same
@@ -818,6 +837,72 @@ const thirdPartyRuling = (citedPath) =>
 		(rule) => citedPath === rule.suffix || citedPath.endsWith(`/${rule.suffix}`),
 	) ?? null;
 
+/**
+ * RULING 12 - A SUFFIX MATCH MAY NOT RESCUE AN ANCHORED FIRST-PARTY PATH. Ruled by
+ * T005 on a hole the T001 worker found while REFUTING the card it had been given.
+ *
+ * WHAT WAS MEASURED, AND THE ISOLATION THAT NAMES THE CAUSE. A citation to
+ * `packages/compiler/src/core.mjs:42` was planted in a swept file at HEAD. No such
+ * file exists - `git ls-files` tracks no `core.mjs` anywhere in this repository -
+ * and the guard printed "clean" and EXITED 0. The SAME plant with ONE byte-run
+ * changed, `no-such-file.mjs`, exits 1 and names the site. The only difference is
+ * the basename, so the cause is not the detector, the lexer or the sweep: it is
+ * that RULING 4 was consulted BEFORE `resolvesInRepo` and matched on SUFFIX, so
+ * `.../core.mjs` collided with Qwik's published `core.mjs` and was ruled allowed.
+ * ALL ELEVEN entries in THIRD_PARTY_TARGETS are reachable this way.
+ *
+ * THAT IS THE RENAME/DELETE BLIND SPOT, ARRIVED AT BY A DIFFERENT ROUTE THAN THE
+ * ONE THAT WAS LOOKED FOR. A dangling first-party citation is NOT generally
+ * unchecked - it fails as `unclassified-path`, which the T001 worker proved and
+ * this file's own prose already said. The hole is narrower and worse: it opens
+ * only for first-party files whose BASENAME COLLIDES with a published artifact,
+ * and for exactly those files a rename or a delete silently stops being checked.
+ *
+ * WHY NOT RULING 5'S WHOLE-PATH MATCH, WHICH IS THE OBVIOUS FIX. BECAUSE IT WAS
+ * MEASURED AND IT COSTS 15 LIVE CITATIONS. Ruling 5 can demand whole paths because
+ * markless citations are written out in full; ruling 4's are DELIBERATELY
+ * ABBREVIATED, and its own prose says so - "a citation must name enough of the path
+ * to be recognised". Requiring the whole path would turn `dist/core.mjs:4815`,
+ * `fesm2022/core.mjs:594` and `@angular/common/types/_common_module-chunk.d.ts:840`
+ * red across the idiom policy, three lanes and the angular demo - correct citations
+ * every one, in files this card may not edit. A fix whose cost is fifteen true
+ * sentences is not a fix.
+ *
+ * SO THE RULE IS ANCHORING, WHICH IS WHAT RULING 5 IS ACTUALLY DOING. A suffix
+ * match is a claim about a TAIL: `core.mjs` names the end of a path whose head the
+ * author left off. A path that begins at a directory THIS REPOSITORY TRACKS is not
+ * a tail - it is a complete first-party path, and it must resolve. Measured over
+ * every third-party-ruled site in the repository: FORTY-ONE exist, and ZERO are
+ * anchored, because a published artifact never lives under `packages/` or `demos/`.
+ * The rule costs nothing that is true and refuses the whole class that is false.
+ *
+ * THE ROOTS ARE DERIVED, NEVER LISTED - ruling 10's discipline, for its reason. A
+ * hard-coded `['packages', 'demos', 'docs']` would go stale the day a directory is
+ * added and would re-open the hole for it silently. TRACKED, NOT PRESENT: the roots
+ * come from `git ls-files`, so an untracked scratch directory cannot widen the rule
+ * and an ignored build output cannot narrow it.
+ *
+ * IT IS A TIGHTENING, LIKE EVERY WIDENING BEFORE IT. It relaxes nothing: no
+ * citation that was a violation becomes allowed, and the only verdicts that change
+ * are allowed-to-violation. `integrityProblems` refuses an entry that this rule
+ * would make unreachable, so the hole cannot be re-opened by adding an exemption.
+ */
+export const firstPartyRoots = (files = listTrackedFiles()) =>
+	new Set(
+		files.filter((path) => path.includes('/')).map((path) => path.slice(0, path.indexOf('/'))),
+	);
+
+let cachedRoots = null;
+const repositoryRoots = () => (cachedRoots ??= firstPartyRoots());
+
+/**
+ * Takes its roots as an argument for the same reason `foreignShadowProblems` takes
+ * its list: so the suite can hand it a root this repository does not have and watch
+ * the verdict change, rather than inferring the rule from a green run.
+ */
+export const isFirstPartyAnchored = (citedPath, roots = repositoryRoots()) =>
+	citedPath.includes('/') && roots.has(citedPath.slice(0, citedPath.indexOf('/')));
+
 /** Whole-path match only - see ruling 5 on why a suffix match would be a hole. */
 const foreignRepositoryRuling = (citedPath) =>
 	FOREIGN_REPOSITORY_TARGETS.find((rule) => citedPath === rule.path) ?? null;
@@ -932,26 +1017,49 @@ export const classify = (citation) => {
 				'A bare ordinal with no path citation before it in the same paragraph. A reader ' +
 				'cannot follow it at all.',
 		};
-	const thirdParty = thirdPartyRuling(citation.path);
-	if (thirdParty)
-		return { verdict: 'allowed', kind: 'third-party', reason: thirdParty.reason };
 	if (citation.path.startsWith('/') || citation.path.includes('node_modules/'))
 		return {
 			verdict: 'allowed',
 			kind: 'third-party',
 			reason: 'An absolute or node_modules path: outside this repository, so ruling 4 applies.',
 		};
-	// DELIBERATELY BEFORE RULING 5: a path that exists HERE is first-party no matter
-	// what any list says, so ruling 5 can never unwatch a real repository file.
+	// DELIBERATELY BEFORE RULINGS 4 AND 5: a path that exists HERE is first-party no
+	// matter what any list says, so neither list can unwatch a real repository file.
+	// RULING 5 has had this ordering since T054 and wrote down why; T005 gave RULING 4
+	// the same discipline, because a suffix rule is the easier of the two to collide
+	// with by accident - `core.mjs` is one basename away from any lane's own file.
 	if (resolvesInRepo(citation.path))
 		return {
 			verdict: 'violation',
 			kind: 'first-party-ordinal',
 			reason: `${citation.path} is a file in this repository. Name the symbol, not the line.`,
 		};
+	// RULING 5 IS CONSULTED BEFORE RULING 12, AND THE ORDER IS LOAD-BEARING. All three
+	// FOREIGN_REPOSITORY_TARGETS are anchored at `packages/` - markless is laid out
+	// like this repository, which is the whole reason ruling 5 exists - so an anchor
+	// check placed above them would turn three correctly-ruled live citations red.
+	// Ruling 5 matches the WHOLE path, so it can say "this exact file is elsewhere";
+	// ruling 12 only refuses paths that no list has claimed.
 	const foreign = foreignRepositoryRuling(citation.path);
 	if (foreign)
 		return { verdict: 'allowed', kind: 'foreign-repository', reason: foreign.reason };
+	// RULING 12. Anchored at a directory this repository tracks, and it does not
+	// resolve - so ruling 4's suffix match below may not rescue it.
+	if (isFirstPartyAnchored(citation.path))
+		return {
+			verdict: 'violation',
+			kind: 'dangling-first-party-path',
+			reason:
+				`${citation.path} is anchored at \`${citation.path.slice(0, citation.path.indexOf('/'))}/\`, ` +
+				'a directory of THIS repository, but no such file exists - so it was renamed or ' +
+				'deleted and every citation pointing at it has stopped being checked. Point it at ' +
+				'the real file and name its symbol. It is NOT a third-party artifact, and adding ' +
+				'the basename to THIRD_PARTY_TARGETS would not make it one: ruling 12 is consulted ' +
+				'first precisely so that a basename collision cannot rescue a dangling path.',
+		};
+	const thirdParty = thirdPartyRuling(citation.path);
+	if (thirdParty)
+		return { verdict: 'allowed', kind: 'third-party', reason: thirdParty.reason };
 	return {
 		verdict: 'violation',
 		kind: 'unclassified-path',
@@ -1647,6 +1755,96 @@ export const emitterClassificationProblems = (
  * watch this fire. A collision check that has never been seen to fire is exactly
  * the decoration this file's header warns about.
  */
+/**
+ * RULING 4'S INTEGRITY CHECK, AND IT IS THE LAST EXEMPTION LIST TO GET ONE. Added
+ * by T005 on the T001 worker's second finding: WATCHED, WATCHED_SOURCE,
+ * NOT_YET_WATCHED and FOREIGN_REPOSITORY_TARGETS are all checked above, and
+ * THIRD_PARTY_TARGETS - the list that turned out to hold the actual hole - was the
+ * one nothing checked. "A dangling exemption is the same bug one level up" was
+ * already written in this file's history before it was true here.
+ *
+ * WHAT INTEGRITY MEANS FOR THIS LIST IS NOT WHAT IT MEANS FOR THE OTHERS, AND THE
+ * ASYMMETRY IS THE WHOLE DESIGN PROBLEM. Every other list is checked with
+ * `existsSync`, because every other list names a file that MUST be here. These
+ * entries name PUBLISHED THIRD-PARTY ARTIFACTS that must NOT resolve here by
+ * design - `core.mjs` is Qwik's, `runtime-dom.cjs.js` is Vue's, and they live in
+ * `node_modules` or in nobody's checkout at all. An existence check would be
+ * exactly backwards and would fail on all eleven correct entries.
+ *
+ * SO INTEGRITY HERE IS THE THREE WAYS AN ENTRY CAN BE A RULING THAT RULES NOTHING,
+ * OR RULES SOMETHING IT SHOULD NOT. Each fails on a real defect, and none of them
+ * can be satisfied by an entry that is merely well-formed prose:
+ *
+ *   (1) IT SHADOWS A TRACKED FILE. The direct counterpart of `foreignShadowProblems`
+ *       and the same argument: if a first-party file arrives whose path this suffix
+ *       matches, the entry has silently stopped meaning "a published artifact" and
+ *       started EXEMPTING A LIVE REPOSITORY FILE. `classify` prefers the local file
+ *       now, so the citation is reported anyway - this makes the collision LOUD
+ *       rather than merely harmless, because a stale entry is a hole waiting for
+ *       someone to reorder two branches. Checked against TRACKED files, ruling 10's
+ *       discipline: a scratch file cannot turn the guard red.
+ *
+ *   (2) RULING 12 WOULD MAKE IT UNREACHABLE. An entry anchored at a directory this
+ *       repository tracks - `suffix: 'packages/compiler/src/core.mjs'` - is refused
+ *       by ruling 12 before this list is ever consulted, so it is DEAD TEXT THAT
+ *       READS AS A RULING. This is the check that stops the 4a hole being re-opened
+ *       by the obvious wrong move: someone meets a red dangling citation, adds its
+ *       path here to silence it, and gets a green run and a false record instead.
+ *
+ *   (3) THIS FILE'S OWN DETECTOR COULD NEVER PRODUCE IT. A suffix the `PATH` regex
+ *       cannot match end-to-end - a leading slash, a `../`, an extension not in
+ *       SOURCE_EXTENSIONS - can never equal or end any citation the detector emits.
+ *       It is an exemption for a shape that cannot occur, which is decoration.
+ *
+ * WHAT IS DELIBERATELY *NOT* CHECKED, RECORDED RATHER THAN GLOSSED. There is no
+ * anti-emptying check, unlike `WATCHED.length === 0` above, and the omission is
+ * reasoned: emptying this list makes the guard fail 41 real citations, so it FAILS
+ * TOWARDS RED. A check that can only fire after the suite has already gone red is
+ * decoration of a different kind. Nor is there a reachability check - an entry
+ * matching nothing today is not a defect, because it is ruling a shape that may be
+ * cited tomorrow, and demanding a live user would delete rulings for being obeyed.
+ *
+ * Takes its list, its files and its roots as arguments for the reason
+ * `foreignShadowProblems` does: so the suite can hand it a colliding entry, an
+ * anchored one and a malformed one and WATCH ALL THREE FIRE. All eleven shipped
+ * entries pass, so a check driven only by the real list would never have been seen
+ * to fail at all.
+ */
+const WHOLE_SUFFIX = new RegExp(`^${PATH}$`);
+
+export const thirdPartyIntegrityProblems = (
+	entries = THIRD_PARTY_TARGETS,
+	files = listTrackedFiles(),
+	roots = firstPartyRoots(files),
+) => {
+	const problems = [];
+	for (const entry of entries) {
+		for (const path of files.filter(
+			(tracked) => tracked === entry.suffix || tracked.endsWith(`/${entry.suffix}`),
+		))
+			problems.push(
+				`THIRD_PARTY_TARGETS exempts \`${entry.suffix}\` as a published third-party artifact, ` +
+					`but ${path} is a TRACKED FILE OF THIS REPOSITORY that the suffix matches. The ` +
+					'entry now exempts a first-party file. Re-rule it, or narrow the suffix.',
+			);
+		if (isFirstPartyAnchored(entry.suffix, roots))
+			problems.push(
+				`THIRD_PARTY_TARGETS names \`${entry.suffix}\`, which is anchored at a directory this ` +
+					'repository tracks. RULING 12 refuses such a path before this list is consulted, so ' +
+					'the entry can never match: it is dead text that reads as a ruling. A dangling ' +
+					'first-party citation is fixed by pointing it at the real file, NOT by exempting it.',
+			);
+		if (!WHOLE_SUFFIX.test(entry.suffix))
+			problems.push(
+				`THIRD_PARTY_TARGETS names \`${entry.suffix}\`, which this file's own PATH detector ` +
+					'cannot match end to end, so no citation it emits can ever equal or end with it. ' +
+					'Check the extension is in SOURCE_EXTENSIONS and that the suffix carries no ' +
+					'leading slash or `../` segment.',
+			);
+	}
+	return problems;
+};
+
 export const foreignShadowProblems = (entries = FOREIGN_REPOSITORY_TARGETS) =>
 	entries
 		.filter((entry) => existsSync(resolve(root, entry.path)))
@@ -1698,6 +1896,9 @@ export const integrityProblems = () => {
 			);
 	}
 	problems.push(...foreignShadowProblems());
+	// RULING 4's counterpart, added by T005. It was the last exemption list with no
+	// integrity check, and it was the one holding the hole ruling 12 closed.
+	problems.push(...thirdPartyIntegrityProblems());
 	problems.push(...sweepProblems());
 	// Every living top-level doc must be classified. A new one with bare ordinals
 	// cannot slip in unruled, which is how this class survived four sweeps.

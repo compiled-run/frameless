@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	copyFileSync,
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
@@ -24,8 +32,11 @@ import {
 	corpusLanes,
 	emitterClassificationProblems,
 	findCitations,
+	firstPartyRoots,
 	foreignShadowProblems,
 	integrityProblems,
+	isFirstPartyAnchored,
+	listTrackedFiles,
 	listTrackedSourceFiles,
 	scanCountedSubjects,
 	scanRepository,
@@ -33,6 +44,7 @@ import {
 	sixLaneApplications,
 	sweepProblems,
 	sweptSourceFiles,
+	thirdPartyIntegrityProblems,
 } from '../../../scripts/check-citations.mjs';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
@@ -227,6 +239,240 @@ describe('T053 citation-ordinal guard', () => {
 				classify({ path: 'packages/compiler/src/build.ts', ordinal: '342', inheritedFrom: null })
 					.verdict,
 			).toBe('violation');
+		});
+	});
+
+	/**
+	 * T005 RULING 12 — THE HOLE RULING 5 CLOSED FOR ITSELF AND RULING 4 NEVER DID.
+	 *
+	 * Every fixture below is SYNTHETIC and written to a temp directory, never read
+	 * out of this repository's prose. That is deliberate: the plant these tests port
+	 * was measured in `scripts/demo.mjs`, and a test that asserted against that file
+	 * would go green the day someone edits the comment, which is exactly how the
+	 * measurement that sent T001 wrong managed to measure nothing at all.
+	 */
+	describe('T005 ruling 12 — a suffix match may not rescue an anchored first-party path', () => {
+		const fixtureDir = mkdtempSync(join(tmpdir(), 'ruling12-'));
+		afterAll(() => rmSync(fixtureDir, { recursive: true, force: true }));
+
+		/** Writes a synthetic source file and scans it exactly as `scanRepository` does. */
+		const scanFixture = (name: string, lines: string[]) => {
+			const file = join(fixtureDir, name);
+			writeFileSync(file, `${lines.join('\n')}\n`);
+			return scanText(commentsOnly(readFileSync(file, 'utf8')), `fixture/${name}`);
+		};
+
+		const CITED = 'packages/compiler/src/core.mjs';
+		const bodyFor = (path: string) => [
+			'#!/usr/bin/env node',
+			'// A lane note whose cited file has since been renamed away.',
+			`// The constraint is enforced at \`${path}:42\`, which no longer exists.`,
+			'export const run = () => 1;',
+		];
+
+		test('THE PLANT: a deleted first-party file whose basename collides with a third-party target', () => {
+			// This exact citation EXITED 0 at HEAD before ruling 12, because `core.mjs`
+			// is Qwik's published bundle and ruling 4 matched it on suffix.
+			expect(existsSync(resolve(repoRoot, CITED))).toBe(false);
+			const found = scanFixture('deleted-collides.mjs', bodyFor(CITED));
+			expect(found).toHaveLength(1);
+			expect(found[0].kind).toBe('dangling-first-party-path');
+			// THE FIRING SITE, not merely the count.
+			expect(found[0].file).toBe('fixture/deleted-collides.mjs');
+			expect(found[0].lineNumber).toBe(3);
+			expect(found[0].column).toBe(bodyFor(CITED)[2].indexOf(CITED) + 1);
+			expect(found[0].raw).toBe(`${CITED}:42`);
+		});
+
+		test('THE ISOLATION: one basename used to decide green vs red, and no longer does', () => {
+			// The control that named the defect. A dangling first-party citation was
+			// ALWAYS caught — the T001 worker was right about that, and the card it was
+			// given was wrong. What escaped was the COLLIDING BASENAME and nothing else:
+			// at HEAD `no-such-file.mjs` exited 1 as `unclassified-path` while `core.mjs`
+			// exited 0, one byte-run apart. Both are violations now, which is the fix.
+			const control = scanFixture(
+				'deleted-plain.mjs',
+				bodyFor('packages/compiler/src/no-such-file.mjs'),
+			);
+			const colliding = scanFixture('deleted-collides-2.mjs', bodyFor(CITED));
+			expect(control).toHaveLength(1);
+			expect(colliding).toHaveLength(1);
+			expect(control[0].verdict).toBe('violation');
+			expect(colliding[0].verdict).toBe('violation');
+			// And the basename no longer changes the verdict OR the diagnosis.
+			expect(control[0].kind).toBe(colliding[0].kind);
+			expect(colliding[0].kind).toBe('dangling-first-party-path');
+		});
+
+		test('an UNANCHORED dangling path is still `unclassified-path` — ruling 12 is narrow', () => {
+			// Ruling 12 claims only paths that begin at a directory this repository
+			// tracks. `generated/` is not one, so that class is untouched and keeps the
+			// verdict T053 gave it.
+			const found = scanFixture('unanchored.mjs', [
+				'// The emitter regenerates this, so the citation cannot be followed:',
+				'// see `generated/S2.jsx:42` and `S2.vue:14`.',
+			]);
+			expect(found.map((violation) => violation.kind)).toEqual([
+				'unclassified-path',
+				'unclassified-path',
+			]);
+		});
+
+		test('ALL ELEVEN third-party targets were reachable this way, and none is now', () => {
+			// The count T005 measured for itself rather than inheriting: every entry in
+			// the list, not a sampled few, could rescue a dangling `packages/…` path.
+			expect(THIRD_PARTY_TARGETS).toHaveLength(11);
+			const rescued = THIRD_PARTY_TARGETS.filter(
+				(target) =>
+					classify({
+						path: `packages/compiler/src/${target.suffix}`,
+						ordinal: '42',
+						inheritedFrom: null,
+					}).verdict === 'allowed',
+			);
+			expect(rescued).toEqual([]);
+		});
+
+		/**
+		 * THE NEGATIVE CONTROLS. A rule that refused everything would pass the tests
+		 * above and destroy the guard, so each branch ruling 12 must NOT touch is
+		 * pinned — including the proof that ruling 4 is still REACHABLE rather than
+		 * merely un-fired.
+		 */
+		test('an abbreviated third-party citation still passes — ruling 4 is bounded, not repealed', () => {
+			expect(scanFixture('third-party.mjs', [
+				'// Qwik enforces it inside the published bundle at `core.mjs:15905`,',
+				'// and the declaration lives at `dist/core-internal.d.ts:2971`.',
+				'// Angular ships the same shape at `fesm2022/core.mjs:594`.',
+			])).toEqual([]);
+		});
+
+		test('ruling 4 is REACHABLE, not dead: the real sweep still allows third-party citations', () => {
+			// A branch that no live citation reaches is indistinguishable from one that
+			// has been switched off. This asserts the branch is load-bearing at HEAD.
+			// Markdown goes in RAW and source goes through the lexer, exactly as
+			// `scanRepository` reads them — running a JS comment lexer over prose would
+			// blank the documents and buy a reachability claim that measured nothing.
+			const allowedThirdParty = [
+				...WATCHED.flatMap((entry) => findCitations(readDoc(entry.path))),
+				...WATCHED_SOURCE.flatMap((entry) => findCitations(commentsOnly(readDoc(entry.path)))),
+			].filter((citation) => classify(citation).kind === 'third-party');
+			expect(allowedThirdParty.length).toBeGreaterThan(0);
+		});
+
+		test('an EXISTING first-party path still fires as first-party, not as dangling', () => {
+			const found = scanFixture('exists.mjs', bodyFor('packages/compiler/src/build.ts'));
+			expect(found).toHaveLength(1);
+			expect(found[0].kind).toBe('first-party-ordinal');
+		});
+
+		test("ruling 5 is consulted FIRST, so markless' anchored paths are untouched", () => {
+			// All three FOREIGN_REPOSITORY_TARGETS are anchored at `packages/`. An anchor
+			// check placed above ruling 5 would turn three correct live citations red.
+			for (const target of FOREIGN_REPOSITORY_TARGETS) {
+				expect(isFirstPartyAnchored(target.path)).toBe(true);
+				expect(classify({ path: target.path, ordinal: '1', inheritedFrom: null }).kind).toBe(
+					'foreign-repository',
+				);
+			}
+		});
+
+		test('a real repository file beats ruling 4, so a collision can never unwatch a live site', () => {
+			// The ordering property T005 gave ruling 4, stated as a test. No tracked file
+			// collides with the shipped list today, so this is pinned through the same
+			// argument-taking door ruling 5 uses.
+			expect(
+				thirdPartyIntegrityProblems([{ suffix: 'packages/compiler/src/build.ts', reason: 'x' }]),
+			).not.toEqual([]);
+			expect(
+				classify({ path: 'packages/compiler/src/build.ts', ordinal: '342', inheritedFrom: null })
+					.verdict,
+			).toBe('violation');
+		});
+
+		test('the roots are DERIVED from the index, never listed', () => {
+			const roots = firstPartyRoots();
+			expect(roots.has('packages')).toBe(true);
+			expect(roots.has('demos')).toBe(true);
+			expect(roots.has('node_modules')).toBe(false);
+			// Untracked directories cannot widen the rule — `tracked, not present`.
+			expect(roots.has('website')).toBe(false);
+			// And the rule follows the roots it is handed rather than a hard-coded list.
+			expect(isFirstPartyAnchored('vendor/core.mjs', new Set(['vendor']))).toBe(true);
+			expect(isFirstPartyAnchored('vendor/core.mjs', new Set(['packages']))).toBe(false);
+			expect(isFirstPartyAnchored('core.mjs')).toBe(false);
+		});
+
+		test('splitting listTrackedFiles out of listTrackedSourceFiles changed no scope', () => {
+			// T005 refactored the sweep's enumerator to expose the whole index. The sweep
+			// must be exactly the lexable subset of it — a refactor that quietly shrank
+			// the sweep would be the vacuous pass this guard's header warns about.
+			const all = listTrackedFiles();
+			const source = listTrackedSourceFiles();
+			expect(all.length).toBeGreaterThan(source.length);
+			expect(source.every((path) => all.includes(path))).toBe(true);
+			expect(all.every((path) => path !== '')).toBe(true);
+		});
+	});
+
+	/**
+	 * T005 FINDING 4b — THIRD_PARTY_TARGETS WAS THE ONE EXEMPTION LIST NOTHING
+	 * CHECKED, AND IT WAS THE ONE HOLDING THE HOLE. Every case is driven through the
+	 * function's argument-taking door, because all eleven shipped entries pass and a
+	 * check exercised only against them would never have been seen to fail.
+	 */
+	describe('T005 — ruling 4 finally has an integrity check', () => {
+		test('the shipped list is clean, and that is asserted rather than assumed', () => {
+			expect(thirdPartyIntegrityProblems()).toEqual([]);
+			expect(integrityProblems()).toEqual([]);
+		});
+
+		test('(1) an entry that shadows a TRACKED first-party file', () => {
+			const problems = thirdPartyIntegrityProblems(
+				[{ suffix: 'schema.ts', reason: 'x' }],
+				['packages/compiler/src/schema.ts'],
+				new Set(['packages']),
+			);
+			expect(problems).toHaveLength(1);
+			expect(problems[0]).toContain('TRACKED FILE OF THIS REPOSITORY');
+			expect(problems[0]).toContain('packages/compiler/src/schema.ts');
+		});
+
+		test('(2) an entry ruling 12 would make unreachable — the way the hole gets re-opened', () => {
+			// The wrong fix for a red dangling citation is to exempt it. This refuses it.
+			const problems = thirdPartyIntegrityProblems(
+				[{ suffix: 'packages/compiler/src/core.mjs', reason: 'x' }],
+				[],
+				new Set(['packages']),
+			);
+			expect(problems).toHaveLength(1);
+			expect(problems[0]).toContain('anchored at a directory this repository tracks');
+		});
+
+		test("(3) an entry this file's own detector could never emit", () => {
+			for (const suffix of ['../elsewhere/core.mts', '/abs/core.mjs', 'core']) {
+				const problems = thirdPartyIntegrityProblems([{ suffix, reason: 'x' }], [], new Set());
+				expect(problems).toHaveLength(1);
+				expect(problems[0]).toContain('cannot match end to end');
+			}
+		});
+
+		test('integrity is NOT existence — the asymmetry that made this list the last one checked', () => {
+			// Every other list is checked with existsSync because it names a file that
+			// must be here. These name published artifacts that must NOT resolve here,
+			// so an existence check would fail on all eleven correct entries.
+			for (const target of THIRD_PARTY_TARGETS)
+				expect(existsSync(resolve(repoRoot, target.suffix))).toBe(false);
+			expect(thirdPartyIntegrityProblems()).toEqual([]);
+		});
+
+		test('and it is wired into the guard, not merely exported', () => {
+			// A detector nothing calls is decoration. This pins the call site.
+			const problems = integrityProblems();
+			expect(problems).toEqual([]);
+			expect(readFileSync(resolve(repoRoot, 'scripts/check-citations.mjs'), 'utf8')).toContain(
+				'problems.push(...thirdPartyIntegrityProblems());',
+			);
 		});
 	});
 

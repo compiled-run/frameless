@@ -44,7 +44,7 @@ goal:
       SHIPPING A GUARD CHANGE THAT LOOKS RIGHT AND HAS NEVER BEEN SHOWN TO FAIL. The previous
       board caught SIX vacuous instruments, two of them the PM's own.
 
-active_task: T005
+active_task: T002
 
 # ---------------------------------------------------------------------------
 # KNOWN WORKING-TREE DIRT - NOT OURS. DO NOT "CLEAN UP", DO NOT `git add -A`.
@@ -177,7 +177,7 @@ tasks:
   - id: T002
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     reasoning_hint: high
     objective: >-
       EXTEND THE GUARD'S SWEEP TO .svelte AND .vue - the two lane file types no ruling can read.
@@ -327,7 +327,7 @@ tasks:
   - id: T005
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: high
     objective: >-
       CLOSE THE REAL RENAME/DELETE BLIND SPOT T001 FOUND, which is NOT the one T001's card
@@ -374,4 +374,78 @@ tasks:
       - "The owner's three dirty paths are touched. DO NOT `git add -A`."
       - "NEVER pkill -f."
       - "Verification fails twice for the same reason."
-    receipt: null
+    receipt:
+      result: done
+      harness: claude-code
+      verification_attempts: 1
+      note: notes/T005-suffix-hole.md
+      summary: "BOTH FINDINGS RE-MEASURED FROM SCRATCH AND BOTH WERE REAL. 4a confirmed with a GUARDED plant (marker-present + no-op assertions - THE EXACT CHECK WHOSE ABSENCE MADE THE PM'S T001 MEASUREMENT VACUOUS) and ISOLATED by a one-basename control. WHOLE-PATH MATCHING WAS MEASURED AND REJECTED - it costs 15 live correct citations outside allowed_files - so it followed WHAT RULING 5 IS ACTUALLY DOING, ANCHORING, which costs 0 of 41, plus ruling 5's reorder discipline. 4b closed with a three-part integrity check. Both fixes proven red-capable AND mutated. THE REPOSITORY TURNS RED ON ZERO EXISTING SITES."
+      suffix_matchable_count: "11 OF 11 THIRD_PARTY_TARGETS ENTRIES, measured, not inherited. EVERY entry - not just core.mjs - rescues a non-existent first-party path whose basename collides with it, SO THE BLIND SPOT WIDENED WITH EVERY ENTRY EVER ADDED."
+      third_party_targets_integrity_decision: "INTEGRITY HERE IS NOT EXISTENCE, AND THAT ASYMMETRY IS THE DESIGN PROBLEM. Every other list is existsSync-checked because it names a file that MUST be here; these name PUBLISHED third-party artifacts that must NOT resolve here by design, so an existence check would be BACKWARDS and fail on all 11 correct entries (ASSERTED AS A TEST). Defined instead as the three ways an entry can rule nothing or rule something it must not: (1) IT SHADOWS A TRACKED FILE - the direct counterpart of foreignShadowProblems, checked against TRACKED files per ruling 10 so a scratch file cannot turn the guard red. (2) RULING 12 WOULD MAKE IT UNREACHABLE - AND THIS IS THE CHECK THAT STOPS THE 4a HOLE BEING REOPENED BY THE OBVIOUS WRONG MOVE: meet a red dangling citation, exempt it, get a green run and a false record. That move is a stop_if on this card, NOW ENFORCED IN CODE. (3) THE DETECTOR COULD NEVER EMIT IT. DELIBERATELY NOT CHECKED AND RECORDED: no anti-emptying check, because emptying the list fails 41 real citations and so FAILS TOWARDS RED - a check that can only fire after the suite is already red is DECORATION; and no reachability check, because DEMANDING A LIVE USER WOULD DELETE RULINGS FOR BEING OBEYED."
+      changed_files:
+        - scripts/check-citations.mjs
+        - packages/compiler/test/citations.test.ts
+        - docs/goals/frameless-guard-and-coverage-v1/notes/T005-suffix-hole.md
+      commands:
+        - cmd: "owner fingerprint START and FINISH"
+          status: pass
+          note: "f326d314 / aeb7edc1 / f936e169, 116 files - IDENTICAL"
+        - cmd: "RE-MEASURE 4a at HEAD with a GUARDED plant"
+          status: pass
+          note: "packages/compiler/src/core.mjs:42 -> EXIT 0, prints 'clean'. CONFIRMED. Plant guarded by marker-present + no-op assertions AND confirmed by grep"
+        - cmd: "ISOLATION CONTROL: same plant, basename no-such-file.mjs"
+          status: pass
+          note: "EXIT 1, unclassified-path. ONLY THE BASENAME DIFFERS, so the cause is isolated to the suffix collision - and T001's worker was right that dangling paths ARE otherwise caught"
+        - cmd: "enumerate suffix-matchable entries"
+          status: pass
+          note: "11 OF 11. Not a sample"
+        - cmd: "MEASURE THE COST OF WHOLE-PATH MATCHING BEFORE CHOOSING"
+          status: pass
+          note: "15 LIVE CORRECT CITATIONS would go red (idiom policy 3, qwik 8, angular demo 2, svelte 2), ALL OUTSIDE allowed_files. REJECTED BY MEASUREMENT. Anchoring costs 0 of 41"
+        - cmd: "implement ruling 12 (anchoring + reorder) and thirdPartyIntegrityProblems"
+          status: pass
+          note: "Ruling 5 KEPT ABOVE ruling 12 - its 3 markless paths are anchored at packages/ and would otherwise go red. PINNED BY A TEST"
+        - cmd: "RED-CAPABILITY 4a after the fix"
+          status: pass
+          note: "EXIT 1, names scripts/demo.mjs:3:23, kind dangling-first-party-path. Restored sha256 cb452208 identical. PM INDEPENDENTLY REPRODUCED: plant applied (grep=1), exit 1, restore exit 0"
+        - cmd: "RED-CAPABILITY 4b: three defective entries planted"
+          status: pass
+          note: "EXIT 1, 5 integrity problems; ALL THREE DEFECT CLASSES FIRE. Restored, guard sha256 c0fe2869 identical"
+        - cmd: "MUTATION A: isFirstPartyAnchored -> false"
+          status: pass
+          note: "check:citations STILL EXIT 0 printing 'clean' and 'agreed with the prose'; 6 ported tests RED. PM INDEPENDENTLY REPRODUCED: digest eff2dbea, check exit 0, 6 failed / 128 passed; restored c0fe2869, 134 passed"
+        - cmd: "MUTATION B: thirdPartyIntegrityProblems -> []"
+          status: pass
+          note: "check:citations STILL EXIT 0; 4 ported tests RED. Restored byte-identically"
+        - cmd: "NEGATIVE CONTROLS"
+          status: pass
+          note: "abbreviated third-party still passes; RULING 4 BRANCH REACHABLE (41 live allowed citations, ASSERTED NOT ASSUMED); existing first-party fires first-party-ordinal; ruling 5's 3 paths still foreign-repository"
+        - cmd: "repository-wide verdict histogram BEFORE vs AFTER"
+          status: pass
+          note: "IDENTICAL: third-party 41, foreign-repository 3, violations 0. ZERO existing sites turn red, so NOTHING outside allowed_files was reached for"
+        - cmd: "derived-tree assertion + git diff --exit-code, SHELL ARRAY, NO WILDCARD"
+          status: pass
+          note: "20 trees asserted exist+non-empty FIRST - THE ASSERTION CAUGHT ITS OWN WRONG SVELTE PATH - then no diff; RE-RUN POST-E2E, still clean"
+        - cmd: "pnpm check"
+          status: pass
+          note: "261 -> 261. DELTA 0 as predicted"
+        - cmd: "pnpm test"
+          status: pass
+          note: "1473 -> 1490 passed. RISE OF EXACTLY 17 = the tests added. Failures STILL EXACTLY 1 (foreign ARM B)"
+        - cmd: "pnpm e2e RUN ALONE"
+          status: pass
+          note: "PASS - 6 demos x 9 scenarios"
+        - cmd: "pnpm lint / pnpm check:citations"
+          status: pass
+          note: "0/0 over 558. Citations exit 0; 4 / 17 / 610 UNCHANGED - the sweep did not shrink; 0.670s vs 0.745s before"
+      deviations:
+        - "Planted in and BYTE-IDENTICALLY restored scripts/demo.mjs (outside allowed_files) THREE times, because verify items 1 and 4 MANDATE a plant showing the guard passing at HEAD and failing after - and NEITHER allowed file is readable by the guard, both being exempted by path under ruling 2 as SPECIMEN TEXT. Same boundary T001 hit; the PM accepts. Zero net change. The PERMANENT form of every plant lives in the suite off SYNTHETIC temp-dir fixtures."
+        - "FIXED 4a BY ANCHORING RATHER THAN WHOLE-PATH. The card offered 'ORDERING OR WHOLE-PATH'; ORDERING ALONE FLIPS 0 SITES and does NOT close the measured hole (the cited file does not exist, so resolvesInRepo is false either way), and WHOLE-PATH COSTS 15 LIVE CITATIONS. It shipped BOTH the reorder (ruling 5's written discipline, closing the future existing-file case) AND anchoring (closing the measured case)."
+        - "Refactored listTrackedSourceFiles onto a new listTrackedFiles, because ruling 12 and the shadow check ask questions of the WHOLE index, not the lexable subset. Output-identical; PINNED BY A TEST that the sweep is exactly the lexable subset, SO THE REFACTOR CANNOT HAVE QUIETLY SHRUNK IT."
+        - "AMENDED RULING 4'S OWN DOC COMMENT, which stated the suffix rule with NO CAVEAT and would have become FALSE PROSE IN THE ONE FILE WHOSE ENTIRE PURPOSE IS THAT PROSE DOES NOT ROT."
+        - "CORRECTED ONE OF ITS OWN TEST EXPECTATIONS RATHER THAN THE CODE: it expected the non-colliding control to stay unclassified-path, but it is ALSO anchored and now carries the better dangling-first-party-path diagnosis. Verdict unchanged; only the kind improved."
+      remaining_blockers:
+        - "NOT A BLOCKER, DISCLOSED: one classification KIND changes with NO verdict changing - an anchored dangling path formerly unclassified-path is now dangling-first-party-path, with a diagnosis NAMING THE RENAME/DELETE instead of advising the reader to add an exemption. Both are violations. NO citation that was a violation became allowed."
+        - "NOT A BLOCKER, DISCLOSED: a node_modules path that also matches a suffix now gets the generic 'outside this repository' reason rather than the entry's specific one. Verdict and kind unchanged for all 4 live sites."
+        - "UNTOUCHED AND STILL THE OWNER'S: the 374 ordinal-less path mentions. They NEVER REACH classify - findCitations emits them only as antecedents - so nothing here reclassified them."
+      stopped_because: null
