@@ -1,0 +1,270 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Frameless guard hardening and drag coverage"
+  slug: "frameless-guard-and-coverage-v1"
+  kind: specific
+  status: active
+  tranche: >-
+    Close the citation guard's rename/delete blind spot, extend its sweep to the two lane file
+    types it cannot read, measure the drag in a second browser or qualify every claim, and
+    correct the last two stale records.
+  oracle:
+    signal: >-
+      THREE PARTS, ALL REQUIRED. (1) EVERY GUARD CHANGE IS PROVEN RED-CAPABLE AGAINST A REAL
+      FAILURE AND THE PROOF RE-RUNS IN CI - mutate the detector, show the suite go RED, restore
+      BYTE-IDENTICALLY, report the digest both times. `pnpm check:citations` EXITING 0 ON A CLEAN
+      TREE IS NOT EVIDENCE: the previous board proved a NEUTERED detector still prints "agreed
+      with the prose" and exits 0. (2) THE DRAG CLAIM NAMES ITS BROWSER OR IS MEASURED IN A SECOND
+      ONE - either Firefox is driven and recorded PER LANE, or every drag claim in the repo is
+      QUALIFIED AS CHROMIUM. "It works in Chromium" MAY NOT BE WRITTEN AS "it works". (3) NOTHING
+      REGRESSES: pnpm test at EXACTLY ONE failure; pnpm e2e stays 6 x 9 RUN ALONE; lint and
+      check:citations clean. pnpm check BASELINE 261, may rise only on a card stating the amount
+      IN ADVANCE.
+    cadence: "after each card, and at final audit"
+    final_proof: >-
+      Per guard change, the mutation and its restore digest; per lane, the Firefox result or the
+      qualified claim; the check budget's start and end with every rise attributed.
+  intake:
+    original_request: >-
+      The PM listed what remained after frameless-app-fidelity-v1 closed complete. The owner
+      answered "Fix them all."
+    interpreted_outcome: >-
+      The guard's rename/delete hole closed and proven red; .svelte/.vue prose swept; the drag
+      measured in Firefox or every claim qualified; two stale records corrected.
+    input_shape: specific
+    proof_type: test
+    completion_proof: >-
+      A mutation proof per guard change, a per-lane Firefox result or a qualified claim, and the
+      three machine gates green.
+    likely_misfire: >-
+      SHIPPING A GUARD CHANGE THAT LOOKS RIGHT AND HAS NEVER BEEN SHOWN TO FAIL. The previous
+      board caught SIX vacuous instruments, two of them the PM's own.
+
+active_task: T001
+
+# ---------------------------------------------------------------------------
+# KNOWN WORKING-TREE DIRT - NOT OURS. DO NOT "CLEAN UP", DO NOT `git add -A`.
+# `M pnpm-lock.yaml`, `M pnpm-workspace.yaml`, `?? website/` are the OWNER'S
+# in-flight work. Fingerprints, `shasum -a 256` sorting whole output LINES:
+# f326d314 / aeb7edc1 / f936e169 over 116 website files. Every card checks them
+# at START and FINISH and they must be IDENTICAL.
+# ---------------------------------------------------------------------------
+
+rules:
+  - "state.yaml is board truth; goal.md is the charter."
+  - "Exactly one active task unless disjoint write scopes are proven."
+  - "Scout and Judge are READ-ONLY. Workers write only inside allowed_files and run their verify."
+  - "Every completed, blocked or escalated task gets a receipt."
+  - "The goal completes only through a final Judge audit recording full_outcome_complete: true."
+  - "MEASURE, NEVER INHERIT. Twelve cards on the predecessor board exceeded their brief's count."
+  - "AN INSTRUMENT NEVER SHOWN TO FAIL IS WORTHLESS. Six vacuous proofs were caught on the last board."
+
+agents:
+  scout: installed
+  judge: installed
+  worker: installed
+
+visual_board:
+  enabled: false
+
+tasks:
+  - id: T001
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: high
+    objective: >-
+      CLOSE THE CITATION GUARD'S RENAME/DELETE BLIND SPOT. A citation to a path that does not
+      exist is silently ruled NOT-FIRST-PARTY and escapes every ruling, so the moment a cited file
+      is renamed or deleted, every citation pointing at it STOPS BEING CHECKED - silently, with
+      the check still green.
+    THE_PM_MEASURED_THIS_AT_HEAD: >-
+      Planted a citation to `packages/compiler/src/totally-not-a-real-file.ts:42` in
+      scripts/demo.mjs and ran the guard: EXIT 0. Restored byte-identically: EXIT 0. The hole is
+      at scripts/check-citations.mjs:830 - `resolvesInRepo` calls existsSync ONLY TO CLASSIFY.
+    WHY_THIS_IS_THE_BIGGEST_ITEM: >-
+      The previous board moved THE REPO'S ENTIRE RECORD INTEGRITY onto this check. A blind spot
+      that WIDENS WITH EVERY FUTURE RENAME is the one item where doing nothing degrades over time.
+    allowed_files:
+      - "scripts/check-citations.mjs"
+      - "packages/compiler/test/citations.test.ts"
+      - "docs/goals/frameless-guard-and-coverage-v1/notes/T001-dangling-citations.md"
+    verify:
+      - "SWEEP FIRST AND REPORT YOUR OWN COUNT: how many citation-shaped tokens in the repo point at a path that DOES NOT EXIST? Enumerate them before changing behaviour. IF THE ANSWER IS NOT ZERO, EVERY ONE IS EITHER A REAL STALE CITATION OR A DELIBERATE REFERENCE NEEDING AN EXEMPTION - rule each BY NAME."
+      - "THE FIX IS CLASSIFY-THEN-FAIL, NOT CLASSIFY-THEN-SKIP. A citation-shaped token whose path looks first-party (not absolute, not node_modules) but does not resolve MUST be a violation, with a NAMED exemption list for deliberate references. EXEMPTIONS MUST BE EXISTENCE-CHECKED THEMSELVES - a dangling exemption is the same bug one level up, and the previous board hit exactly that."
+      - "RED-CAPABILITY PROOF, MANDATORY: plant a citation to a NON-EXISTENT first-party path, show `pnpm check:citations` FAILING and NAMING file:line, then restore BYTE-IDENTICALLY and show it passing. Report the sha256 both times."
+      - "PORT THE PLANTS INTO packages/compiler/test/citations.test.ts asserting the FIRING SITE, driven off a SYNTHETIC fixture in a temp dir - NEVER off repository prose, which a future fix will change."
+      - "MUTATION PROOF: break your new detector so it returns no problems, show the ported tests GOING RED while `pnpm check:citations` STILL EXITS 0. Restore byte-identically. Report the guard's digest both times. THIS IS THE POINT OF THE CARD."
+      - "NEGATIVE CONTROLS: a citation to an EXISTING path must NOT fire; a THIRD-PARTY reference (absolute path, node_modules, a URL, a bare package name) must NOT fire; and prove the third-party branch is still reachable rather than dead."
+      - "pnpm check:citations must still sweep AT LEAST 4 watched documents / 17 watched source files / 610 swept files. Report BEFORE and AFTER, and the timing."
+      - "THIS CARD DERIVES NOTHING. git diff --exit-code over EVERY derived tree, EACH ASSERTED TO EXIST AND BE NON-EMPTY FIRST, paired with git status --short. *** NEVER USE A WILDCARD PATHSPEC *** - git disables leading-directory matching once a pathspec contains a wildcard, so `git diff -- 'demos/*/src/emitted'` MATCHES NOTHING AND EXITS CLEAN. USE A SHELL ARRAY."
+      - "pnpm check BASELINE 261 PREDICTED DELTA 0, MEASURE START YOURSELF at HEAD by stashing your own paths BY NAME / pnpm test - state passed BEFORE and AFTER, rise by exactly the tests you add, failures STILL EXACTLY 1 / pnpm e2e 6 x 9 RUN ALONE / pnpm lint."
+      - "fingerprint the owner's three dirty paths at START and FINISH with `shasum -a 256`, sorting whole output LINES: f326d314 / aeb7edc1 / f936e169, 116 files."
+    stop_if:
+      - "Need files outside allowed_files."
+      - "You are about to ship a guard change WITHOUT a mutation showing your own tests RED. AN INSTRUMENT NEVER SHOWN TO FAIL IS WORTHLESS - the previous board proved a NEUTERED detector still prints 'agreed with the prose' and exits 0."
+      - "You are about to add an exemption that is NOT itself existence-checked."
+      - "You are about to make check:citations sweep FEWER files than it does at HEAD."
+      - "You are about to 'fix' a real stale citation your sweep finds. RULE IT AND REPORT IT - correcting prose outside allowed_files is another card."
+      - "You are about to weaken any EXISTING ruling to make the suite pass."
+      - "You are about to edit a .tsrx fixture. NONE IS IN SCOPE, and a byte-length change moves the checked-in golden while the derivation proof is STRUCTURALLY BLIND to it - only pnpm test catches it."
+      - "pnpm check rises at all. BASELINE 261, PREDICTED DELTA 0."
+      - "pnpm test failures exceed exactly 1, or pnpm e2e leaves 6 x 9."
+      - "Any dependency is added, or pnpm-lock.yaml / pnpm-workspace.yaml / website/ is touched. DO NOT `git add -A`."
+      - "NEVER pkill -f. Stop only what you start, BY ITS RECORDED PID."
+      - "Verification fails twice for the same reason."
+    receipt: null
+
+  - id: T002
+    type: worker
+    assignee: Worker
+    status: queued
+    reasoning_hint: high
+    objective: >-
+      EXTEND THE GUARD'S SWEEP TO .svelte AND .vue - the two lane file types no ruling can read.
+      99 tracked files (58 .svelte + 41 .vue) carry prose that every ruling is blind to, and TWO
+      OF THE SIX LANES state their claims there.
+    THE_LAST_AUDIT_CALLED_THIS_A_PROPERTY_OF_THE_INSTRUMENT: >-
+      It is A MISSING LEXER, NOT A LAW OF NATURE, and the owner ruled "fix them all". T019 already
+      had to write a .svelte site with NO COUNT AT ALL, on purpose, because a count there "would
+      look guarded without being it". THAT WORKAROUND EXISTS BECAUSE OF THIS GAP.
+    allowed_files:
+      - "scripts/check-citations.mjs"
+      - "packages/compiler/test/citations.test.ts"
+      - "docs/goals/frameless-guard-and-coverage-v1/notes/T002-svelte-vue-sweep.md"
+    verify:
+      - "MEASURE FIRST: how many .svelte and .vue files are tracked, and how many citation-shaped tokens and ruling-11 subjects do they carry? REPORT YOUR OWN COUNT against 58 + 41 = 99. DO NOT COPY IT."
+      - "THE LEXER MUST HANDLE ALL THREE COMMENT FORMS THOSE FILES USE: `//` and `/* */` inside <script>, AND `<!-- -->` in template markup. A LINE-ORIENTED STRIPPER IS NOT ENOUGH - it drops every continuation line of an <!-- --> block, which HID A 50-LINE HEADER from the previous board's T021 until it was rebuilt as a state machine."
+      - "TURNING THE SWEEP ON WILL FIND REAL VIOLATIONS IN 99 PREVIOUSLY-UNREAD FILES. ENUMERATE EVERY ONE and rule it: real stale claim, or deliberate reference needing a NAMED existence-checked exemption. IF THE COUNT IS ZERO, SAY SO AND PROVE IT - that would be a surprising result and needs evidence, not assertion."
+      - "IF A REAL VIOLATION IS OUTSIDE allowed_files, DO NOT REACH FOR IT. Record it and let the PM route a card - the previous board recorded a worker BLOCKED for exactly that reach."
+      - "RED-CAPABILITY PROOF: plant a violation in BOTH a .svelte and a .vue file, show the guard FAILING and naming file:line in each, restore BYTE-IDENTICALLY, report digests. Then MUTATE your lexer so it strips nothing and show the ported tests RED while check:citations still exits 0."
+      - "PORT THE PLANTS into citations.test.ts against SYNTHETIC .svelte and .vue fixtures in a temp dir, asserting the FIRING SITE. Never off repository prose."
+      - "REPORT THE SWEPT COUNTS BEFORE AND AFTER - the file count MUST RISE by the number of .svelte/.vue files you admit - and the timing before and after."
+      - "THIS CARD DERIVES NOTHING. git diff --exit-code over every derived tree, each asserted to EXIST and be NON-EMPTY first, NO WILDCARD PATHSPEC, SHELL ARRAY, paired with git status --short."
+      - "pnpm check BASELINE 261 PREDICTED DELTA 0, START and END measured yourself / pnpm test failures EXACTLY 1, passed rising by exactly the tests added / pnpm e2e 6 x 9 RUN ALONE / pnpm lint."
+      - "fingerprint the owner's three dirty paths at START and FINISH: f326d314 / aeb7edc1 / f936e169, 116 files."
+    stop_if:
+      - "Need files outside allowed_files. RECORD violations you cannot reach; DO NOT REACH."
+      - "You are about to ship WITHOUT a mutation showing your own tests RED."
+      - "You are about to use a LINE-ORIENTED comment stripper. It WILL drop <!-- --> continuation lines."
+      - "You are about to admit .svelte/.vue to the sweep and SUPPRESS the violations it finds by loosening a ruling. Exempt BY NAME with a reason, or record it for a card."
+      - "You are about to edit a .tsrx fixture, or any demo or emitter prose. THIS CARD CHANGES THE CHECK, NOT THE RECORD."
+      - "pnpm check rises at all. BASELINE 261."
+      - "pnpm test failures exceed exactly 1, or pnpm e2e leaves 6 x 9."
+      - "Any dependency is added, or the owner's three dirty paths are touched. DO NOT `git add -A`."
+      - "NEVER pkill -f."
+      - "Verification fails twice for the same reason."
+    receipt: null
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: queued
+    reasoning_hint: high
+    objective: >-
+      MEASURE THE DRAG IN FIREFOX, PER LANE, AND MAKE EVERY DRAG CLAIM IN THE REPO NAME ITS
+      BROWSER. Five cards recorded Firefox as unmeasured and none closed it. The demos assert drag
+      as a CROSS-LANE property while the evidence is CHROMIUM-ONLY.
+    THE_ORACLE_ALLOWS_EITHER_OUTCOME: >-
+      Drive Firefox and record the result PER LANE, or QUALIFY every claim as Chromium. BOTH ARE
+      ACCEPTABLE. WHAT IS NOT ACCEPTABLE IS "it works in Chromium" WRITTEN AS "it works". If
+      Firefox disagrees with Chromium in any lane, THAT IS A RESULT, NOT A FAILURE - record it
+      exactly, and DO NOT read it as a defect in any framework.
+    allowed_files:
+      - "demos/shared/board-css/board.css"
+      - "demos/shared/board-css/README.md"
+      - "docs/DEFECTS.md"
+      - "docs/goals/frameless-guard-and-coverage-v1/notes/T003-firefox-drag.md"
+    verify:
+      - "DRIVE A REAL FIREFOX with a real native HTML5 drag in ALL SIX LANES. `locator.dragTo` is the working shape - the previous board proved RAW page.mouse.down/move/up REPORTS NOTHING MOVED IN ANY LANE, including lanes that do drag, because Chromium does not synthesise HTML5 drag from raw mouse events. VERIFY YOUR HARNESS ON A LANE KNOWN TO DRAG IN CHROMIUM BEFORE TRUSTING A NEGATIVE."
+      - "RE-RUN THE CHROMIUM ARM YOURSELF in the same session as a CONTROL. A Firefox result is only interpretable beside a Chromium result you took with the SAME harness. Chromium baseline: FIVE lanes drag and the card STAYS 1.3s after the drop; react is INERT with three verbatim 'Invalid event handler property' errors; [draggable=true]=9 in ALL SIX."
+      - "REPORT PER LANE AND PER BROWSER, with the card counts before and after the drop, and a NEGATIVE CONTROL (a drop onto the sidebar must be REFUSED)."
+      - "THEN MAKE THE RECORD TRUE: every drag claim you can reach must name its browser. SWEEP FOR THE CLAIM MULTI-LINE - joining wrapped comment lines - and REPORT YOUR OWN COUNT. If a claim sits outside allowed_files, RECORD IT, DO NOT REACH."
+      - "board.css: EDIT demos/shared/board-css/board.css AND RE-RUN the copy script. NEVER hand-edit a lane copy. All seven must share ONE digest afterwards - report it."
+      - "docs/DEFECTS.md IS A WATCHED DOCUMENT: run pnpm check:citations AFTER EVERY EDIT to it."
+      - "THIS CARD DERIVES NOTHING. git diff --exit-code over every derived tree, each asserted to EXIST and be NON-EMPTY, NO WILDCARD PATHSPEC, SHELL ARRAY, paired with git status --short."
+      - "pnpm check BASELINE 261 PREDICTED DELTA 0 / pnpm test EXACTLY 1 failure / pnpm e2e 6 x 9 RUN ALONE, never while a demo you started is up / pnpm lint / pnpm check:citations clean."
+      - "fingerprint the owner's three dirty paths at START and FINISH: f326d314 / aeb7edc1 / f936e169, 116 files."
+    stop_if:
+      - "Need files outside allowed_files. RECORD, DO NOT REACH."
+      - "You are about to report a Firefox NEGATIVE without first proving your harness POSITIVE on a lane that drags in Chromium. A BROKEN HARNESS REPORTS 'NOTHING MOVED' EVERYWHERE - that exact false negative already happened on this repo."
+      - "You are about to read a Firefox difference as a DEFECT IN A FRAMEWORK, or file anything upstream. IT IS A MEASUREMENT. The owner's standing rule forbids testing a framework outside its design envelope and reading that output as a defect."
+      - "You are about to write a browser claim YOU DID NOT MEASURE YOURSELF AT HEAD."
+      - "You are about to hand-edit a lane copy of board.css instead of the shared sheet plus the copy script."
+      - "You are about to change WHAT ANY APP DOES. This card measures, and changes only the record."
+      - "You are about to install a browser or add a dependency. If Firefox is not available to playwright, STOP AND SAY SO - that is a blocked receipt, not a reason to skip the measurement quietly."
+      - "pnpm check rises at all. BASELINE 261."
+      - "pnpm test failures exceed exactly 1, or pnpm e2e leaves 6 x 9."
+      - "The owner's three dirty paths are touched. DO NOT `git add -A`."
+      - "NEVER pkill -f. Stop only demos you started, BY RECORDED PID - and angular leaves a CHILD node process holding the port after SIGINT to the pnpm wrapper."
+      - "Verification fails twice for the same reason."
+    receipt: null
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: queued
+    reasoning_hint: medium
+    objective: >-
+      CORRECT THE LAST TWO STALE RECORDS the predecessor board ruled but deliberately did not fix.
+    THE_TWO_SITES: >-
+      (1) packages/frameworks/angular/test/gate.test.ts:50 "four more scenarios are queued" - 17
+      scenarios exist and NONE is queued. The previous board's T021 left it believing the
+      paragraph was a DATED past-tense record; ITS FINAL AUDIT MEASURED THAT THE PARAGRAPH CARRIES
+      NO DATE, so no exemption applies and it IS a live stale claim. (2)
+      demos/shared/shadcn-theme/codex.css:60 - the 43/13/4 divergence counts were taken over the
+      FIVE lanes that served /codex BEFORE angular gained its sixth, and have NEVER been re-run.
+    allowed_files:
+      - "packages/frameworks/angular/test/gate.test.ts"
+      - "demos/shared/shadcn-theme/codex.css"
+      - "demos/react-official/public/shadcn-theme/codex.css"
+      - "demos/solid-official/public/shadcn-theme/codex.css"
+      - "demos/qwik/public/shadcn-theme/codex.css"
+      - "demos/svelte-official/static/shadcn-theme/codex.css"
+      - "demos/vue-official/public/shadcn-theme/codex.css"
+      - "demos/angular-official/public/shadcn-theme/codex.css"
+      - "docs/goals/frameless-guard-and-coverage-v1/notes/T004-last-records.md"
+    verify:
+      - "gate.test.ts: MEASURE THE SCENARIO COUNT YOURSELF from the goldens or the scenario table - do NOT copy 17 from this card - and confirm none is queued. Then correct the clause WITHOUT touching any assertion. A COMMENT IN A TEST FILE IS THE RECORD; THE ASSERTIONS ARE NOT YOURS."
+      - "codex.css:60: EITHER RE-RUN THE DIVERGENCE MEASUREMENT OVER ALL SIX LANES and state the new figures, OR REMOVE THE COUNTS and state the fact without them per OD3's first half. SAY WHICH YOU CHOSE AND WHY. Re-running requires DRIVING /codex in six lanes - if you do it, report per lane."
+      - "EDIT demos/shared/shadcn-theme/codex.css ONLY and RE-RUN demos/shared/copy-shadcn-theme.mjs. NEVER hand-edit a lane copy. All SEVEN must share ONE digest afterwards - report it."
+      - "SWEEP BOTH FILES MULTI-LINE for any other claim of the same families and REPORT YOUR OWN COUNT. TWELVE CARDS ON THE PREVIOUS BOARD EXCEEDED THEIR BRIEF'S COUNT - two sites is a starting point, not a population."
+      - "THIS CARD DERIVES NOTHING. git diff --exit-code over every derived tree, each asserted to EXIST and be NON-EMPTY, NO WILDCARD PATHSPEC, SHELL ARRAY, paired with git status --short."
+      - "pnpm check BASELINE 261 PREDICTED DELTA 0 / pnpm test EXACTLY 1 failure / pnpm e2e 6 x 9 RUN ALONE / pnpm lint / pnpm check:citations AFTER EVERY EDIT."
+      - "fingerprint the owner's three dirty paths at START and FINISH: f326d314 / aeb7edc1 / f936e169, 116 files."
+    stop_if:
+      - "Need files outside allowed_files."
+      - "You are about to change a TEST ASSERTION. Only the comment is yours."
+      - "You are about to write a divergence figure YOU DID NOT MEASURE YOURSELF over six lanes. If you did not re-drive it, REMOVE THE NUMBER rather than guess it."
+      - "You are about to hand-edit a lane copy of codex.css."
+      - "You are about to 'correct' a QUOTED HISTORICAL. The previous board ruled on several; they are correct as they stand."
+      - "You are about to edit a .tsrx fixture. NONE IS IN SCOPE."
+      - "pnpm check rises at all. BASELINE 261."
+      - "pnpm test failures exceed exactly 1, or pnpm e2e leaves 6 x 9."
+      - "The owner's three dirty paths are touched. DO NOT `git add -A`."
+      - "NEVER pkill -f."
+      - "Verification fails twice for the same reason."
+    receipt: null
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "FINAL AUDIT. Certify all three oracle parts, or refuse."
+    scope:
+      - "QUOTE EACH ORACLE PART VERBATIM FROM goal.oracle BEFORE RULING ON IT."
+      - "VERIFY EVERY GUARD CHANGE IS RED-CAPABLE BY MUTATING IT YOURSELF. Do NOT inherit a mutation proof from any card - the predecessor board's final audit did its own and that is the standard."
+      - "VERIFY THE FIREFOX RESULT OR THE QUALIFIED CLAIM PER LANE. If T003 recorded Firefox unavailable, rule whether the qualification is complete instead."
+      - "RE-RUN part 3 at HEAD yourself: pnpm test EXACTLY 1, pnpm e2e 6 x 9 RUN ALONE, lint and check:citations clean, pnpm check 261 with every rise attributed."
+      - "Assume this brief contains at least one error and find it. TWELVE CARDS ON THE PREDECESSOR BOARD FOUND ONE IN THE PM'S."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "each oracle part, quoted verbatim, certified or refused"
+      - "next task if not complete"
+    receipt: null
