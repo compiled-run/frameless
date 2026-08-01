@@ -507,9 +507,10 @@ const FENCE = /^\s*(`{3,}|~{3,})/;
  * into live code. T057 re-measured it independently at HEAD, per file, and got the
  * same 216 across the same 30. Two structural reasons, both visible in this file:
  *
- *   - THE SWEEP IS JS/TS ONLY. `SWEPT_SOURCE_EXTENSIONS` below is
+ *   - THE SWEEP WAS JS/TS ONLY. `SWEPT_SOURCE_EXTENSIONS` below read
  *     /\.(?:ts|tsx|js|jsx|mjs|cjs)$/, so Markdown reaches the detector ONLY through
  *     the hand-named `WATCHED` list - four documents, chosen one card at a time.
+ *     T002 added `.svelte` and `.vue` under RULING 13; Markdown is still list-only.
  *   - THE MARKDOWN COMPLETENESS CHECK DOES NOT RECURSE. `listDocsTopLevel` calls
  *     `readdirSync` on `docs/` and filters `isFile()`, so it sees the three top-level
  *     documents and NOTHING beneath them. A new unruled document under `docs/goals/`
@@ -523,7 +524,14 @@ const FENCE = /^\s*(`{3,}|~{3,})/;
  * over RAW TEXT. Raw text is an UPPER BOUND, not a violation count: none of these has
  * a comment lexer here, so code, data and prose are all read alike.
  *
- *   .vue/.svelte   43 files, ZERO - the disclosure below, re-measured, still true
+ *   .vue/.svelte   43 files, ZERO - the disclosure below, re-measured, still true.
+ *                  T002 RE-MEASURED IT AGAIN AND THE FILE COUNT HAD ALREADY ROTTED:
+ *                  99 tracked files - 58 `.svelte` and 41 `.vue` - not 43. THE
+ *                  NUMBER THAT ROTTED IS IN THE PARAGRAPH EXPLAINING WHY THIS GUARD
+ *                  EXISTS, which is the whole argument for it. The ZERO held at 99,
+ *                  and the container is no longer unswept - see RULING 13. IT IS THE
+ *                  ONLY ONE OF THESE T002 COULD CLOSE: the rest still need the ruling
+ *                  and the lexer this paragraph asks for, one container at a time.
  *   .tsrx          62 files, ZERO
  *   .html          13 files, ZERO
  *   .yaml/.yml     11 non-board files carry ONE, and it is in
@@ -562,18 +570,20 @@ const FENCE = /^\s*(`{3,}|~{3,})/;
  * have read green over the largest surface it has. Only `path` entries exempt, so
  * an exemption is always one named file with one written reason.
  *
- * SCOPED TO JS/TS BECAUSE `commentsOnly` IS A JS LEXER, AND THE LIMIT IS MEASURED
- * RATHER THAN ASSUMED. `.vue` and `.svelte` files have their own grammars around
- * their script blocks, so running this lexer over them whole would be a guess. All
- * 43 tracked `.vue`/`.svelte` files were scanned anyway when this ruling was
- * written: ZERO carry a comment citation of any kind, so nothing is being hidden by
- * the scope - it is a limit on the instrument, recorded, not a silent exclusion.
+ * IT WAS SCOPED TO JS/TS BECAUSE `commentsOnly` IS A JS LEXER, AND T002 CLOSED THAT
+ * BY WRITING THE MISSING LEXER RATHER THAN BY WIDENING A REGEX. The limit was real -
+ * `.vue` and `.svelte` files have their own grammars around their script blocks, and
+ * running a JS lexer over them whole WOULD have been a guess - but it was a property
+ * of THIS FILE, not of those files, and the previous board's final audit calling it
+ * "a property of the instrument" is exactly the sentence that kept it open. RULING 13
+ * gives each of a component's three regions the lexer it actually needs, so the two
+ * lanes that state their claims in markup are read like every other lane.
  *
  * TRACKED, NOT PRESENT. The list comes from `git ls-files`, so a scratch file, a
  * build output or an untracked worktree cannot turn the guard red, and a file
  * cannot escape it by being ignored either - if it is checked in, it is swept.
  */
-const SWEPT_SOURCE_EXTENSIONS = /\.(?:ts|tsx|js|jsx|mjs|cjs)$/;
+const SWEPT_SOURCE_EXTENSIONS = /\.(?:ts|tsx|js|jsx|mjs|cjs|svelte|vue)$/;
 
 /**
  * EVERY tracked path, unfiltered. Split out of `listTrackedSourceFiles` by T005
@@ -721,9 +731,28 @@ const CONTINUED_ORDINAL = /^,(\d+(?:-\d+)?)(?![\w-]|\.\d)/;
  * two, both inside a template literal in a `poc/` probe that BUILDS JavaScript
  * source as a string; those are comments in generated output, not in this file, and
  * dropping them is correct.
+ *
+ * THE BLANK CANVAS IS INDEXED IN UTF-16 UNITS, AND THAT IS A REPAIR T002 MADE ON A
+ * MEASUREMENT RATHER THAN A STYLE PREFERENCE. It was built with `[...text]`, which
+ * splits by CODE POINT, while every cursor in this function - `text[index]`,
+ * `indexOf` - is a UTF-16 OFFSET. The two agree only while a file is entirely BMP.
+ * TWELVE TRACKED FILES ARE NOT: the S15 habit tracker carries fourteen astral
+ * characters in every lane, and this function returned an output FOURTEEN UNITS
+ * SHORTER than its input for each of them, so every comment after the first emoji
+ * was written at a SHIFTED offset and any violation in it would have been reported
+ * at the wrong line and column. `blankLike` fixes the geometry the doc comment above
+ * already claimed, and the suite pins it with an astral fixture. It also makes the
+ * output SAFE TO SPLICE, which RULING 13 below depends on.
  */
+const blankLike = (text) => {
+	const out = Array.from({ length: text.length });
+	for (let index = 0; index < text.length; index += 1)
+		out[index] = text[index] === '\n' ? '\n' : ' ';
+	return out;
+};
+
 export const commentsOnly = (text) => {
-	const out = [...text].map((character) => (character === '\n' ? '\n' : ' '));
+	const out = blankLike(text);
 	const keep = (from, to) => {
 		for (let index = from; index < to; index += 1)
 			if (text[index] !== '\n') out[index] = text[index];
@@ -827,6 +856,209 @@ export const commentsOnly = (text) => {
 		index += 1;
 	}
 	return out.join('');
+};
+
+/**
+ * RULING 13 - A SINGLE-FILE COMPONENT IS THREE LANGUAGES IN ONE FILE, SO IT GETS
+ * THREE LEXERS. Ruled by T002 on the limit ruling 10 recorded and the previous
+ * board's final audit called "a property of the instrument, not a defect to close".
+ * IT IS A MISSING LEXER, NOT A LAW OF NATURE. The owner ruled "fix them all".
+ *
+ * WHAT IT COSTS TO LEAVE IT OPEN, WHICH IS THE ARGUMENT FOR THE CARD. Two of the six
+ * lanes state their claims in `.svelte` and `.vue` files, and RULING 11's own doc
+ * comment records the consequence in its own words: the svelte and vue route prose
+ * "were corrected by hand and deliberately state NO count, because a number written
+ * where no check can read it looks guarded and is not". A workaround written INTO
+ * THE RECORD to route around a gap in the instrument is the reason to close the gap.
+ *
+ * THE THREE FORMS, AND WHERE EACH ONE LIVES. A `.svelte` or `.vue` file is markup
+ * with `<script>` and `<style>` islands in it, and each island has its own comment
+ * syntax:
+ *
+ *   - `<script>` - `//` and `/* *\/`. Handed to `commentsOnly` unchanged, so source
+ *     comments in a component are read by the SAME lexer, under the SAME rulings, as
+ *     source comments anywhere else. The output is spliced back at its true offset,
+ *     which is why that function's canvas had to be made length-preserving first.
+ *   - MARKUP - `<!-- -->`, and this is where the prose actually is. Both lane route
+ *     headers are fifty-line `<!-- -->` blocks.
+ *   - `<style>` - `/* *\/` only, because `//` IS NOT A COMMENT IN CSS and reading it
+ *     as one would swallow the rest of a line holding a `url(https://...)`.
+ *
+ * A LINE-ORIENTED STRIPPER IS NOT ENOUGH, AND THAT IS NOT A HYPOTHETICAL. A rule
+ * like "keep lines that start with `<!--`" keeps the FIRST line of a block and drops
+ * every continuation, which is forty-nine fiftieths of the prose in these files -
+ * including the sentences that carry the counts. So this is a state machine over the
+ * whole text, exactly like `commentsOnly`: it walks regions, and a comment ends where
+ * its terminator is, not where its line is.
+ *
+ * SCANNED FOR REGIONS IN ONE PASS, WHICH IS WHAT KEEPS THE NESTING HONEST. `<script>`
+ * inside an HTML comment is comment text, and `<!--` inside a script is not a
+ * comment at all - a single left-to-right scan that consumes each region whole gets
+ * both right for free, where two independent passes would double-count the first and
+ * mis-read the second.
+ *
+ * GEOMETRY IS PRESERVED, LIKE RULING 8'S. Every byte outside a comment becomes a
+ * space and newlines are left alone, so the SAME detector, the SAME rulings and the
+ * SAME reporting run over components with nothing special-cased, and a violation is
+ * reported at the line and column a reader will find it at.
+ *
+ * MEASURED BEFORE IT WAS SHIPPED, OVER RAW TEXT AS AN UPPER BOUND: all 99 tracked
+ * `.svelte`/`.vue` files were scanned with the detector over their FULL text - code,
+ * data, markup and prose alike, which can only find MORE than any lexer - and they
+ * carry ZERO citation-shaped tokens. So this ruling turns nothing red today. That is
+ * a result about the files, not about the check: the check is proved red-capable by
+ * plants in both file types, and the suite pins the firing site off synthetic
+ * fixtures.
+ *
+ * IT IS A TIGHTENING, LIKE EVERY WIDENING BEFORE IT. `classify` is untouched, no
+ * exclusion is added, and no citation that was a violation becomes allowed.
+ */
+const COMPONENT_EXTENSIONS = /\.(?:svelte|vue)$/;
+
+/**
+ * A `<style>` island's lexer: block comments only, with quoted strings skipped so a
+ * `content: "/*"` cannot open one. Deliberately NOT `commentsOnly` - see ruling 13 on
+ * why `//` must not be a comment here.
+ */
+const blockCommentsOnly = (text) => {
+	const out = blankLike(text);
+	let index = 0;
+	while (index < text.length) {
+		const character = text[index];
+		if (character === '/' && text[index + 1] === '*') {
+			const close = text.indexOf('*/', index + 2);
+			const end = close === -1 ? text.length : close + 2;
+			for (let cursor = index; cursor < end; cursor += 1)
+				if (text[cursor] !== '\n') out[cursor] = text[cursor];
+			index = end;
+			continue;
+		}
+		if (character === "'" || character === '"') {
+			let end = index + 1;
+			while (end < text.length) {
+				if (text[end] === '\\') {
+					end += 2;
+					continue;
+				}
+				if (text[end] === character || text[end] === '\n') break;
+				end += 1;
+			}
+			index = end + 1;
+			continue;
+		}
+		index += 1;
+	}
+	return out.join('');
+};
+
+/** The three regions ruling 13 walks. Everything else in the file is markup. */
+const COMPONENT_REGION = /<!--|<(script|style)\b/gi;
+
+export const componentComments = (text) => {
+	const out = blankLike(text);
+	const lower = text.toLowerCase();
+	COMPONENT_REGION.lastIndex = 0;
+	for (;;) {
+		const match = COMPONENT_REGION.exec(text);
+		if (match === null) break;
+		if (match[1] === undefined) {
+			// A MARKUP COMMENT, AND IT ENDS AT `-->` RATHER THAN AT A NEWLINE. An unclosed
+			// one runs to end of file, which fails TOWARDS red: the text stays readable and
+			// any citation in it is still reported.
+			const close = text.indexOf('-->', match.index + 4);
+			const end = close === -1 ? text.length : close + 3;
+			for (let cursor = match.index; cursor < end; cursor += 1)
+				if (text[cursor] !== '\n') out[cursor] = text[cursor];
+			COMPONENT_REGION.lastIndex = end;
+			continue;
+		}
+		const tag = match[1].toLowerCase();
+		const openEnd = text.indexOf('>', match.index);
+		if (openEnd === -1) break;
+		const start = openEnd + 1;
+		const close = lower.indexOf(`</${tag}`, start);
+		const end = close === -1 ? text.length : close;
+		const island = text.slice(start, end);
+		const lexed = tag === 'script' ? commentsOnly(island) : blockCommentsOnly(island);
+		for (let cursor = 0; cursor < lexed.length; cursor += 1)
+			if (lexed[cursor] !== '\n') out[start + cursor] = lexed[cursor];
+		COMPONENT_REGION.lastIndex = end;
+	}
+	return out.join('');
+};
+
+/**
+ * The sweep's lexer, chosen by extension. Exported so the suite can assert the
+ * DISPATCH rather than infer it from a green run - a component handed to the JS lexer
+ * reads green over its markup, which is exactly the blindness ruling 13 closed.
+ */
+export const commentsFor = (path, text) =>
+	COMPONENT_EXTENSIONS.test(path) ? componentComments(text) : commentsOnly(text);
+
+/**
+ * RULING 13's ANTI-VACUITY CHECK, and it guards the two ways this ruling can go
+ * quiet WITHOUT anything going red - which is the only failure mode that matters for
+ * a widening. `sweepProblems` above cannot see either of them: its floor is over the
+ * WHOLE sweep, and 99 component files disappearing out of 709 leaves it far above a
+ * hundred.
+ *
+ *   (1) THE EXTENSIONS STOP ADMITTING THEM. One character out of
+ *       `SWEPT_SOURCE_EXTENSIONS` and every component is unswept again, silently, with
+ *       the check still printing "clean" - the exact state this ruling was written to
+ *       end. So the tracked component files are enumerated INDEPENDENTLY of that regex
+ *       and each is required to satisfy it.
+ *   (2) THE LEXER RETURNS BLANKS. A mis-tracked region, a `<script>` whose close tag
+ *       moves, an over-eager scan - any of them yields empty prose, and empty prose
+ *       agrees with everything. This is RULING 8's `commentsOnly` floor applied to the
+ *       markup lexer, and it is the one that catches a LINE-ORIENTED stripper: keeping
+ *       only the first line of each `<!-- -->` block would drop most of the 52,000
+ *       characters of prose these files really carry.
+ *
+ * IT TAKES ITS COMPONENTS, ITS LEXABLE SET AND ITS READER AS ARGUMENTS, AND ALL
+ * THREE ARE LOAD-BEARING - the reason every other integrity function here takes its
+ * list. Both branches are otherwise UNDRIVABLE BY DATA: `COMPONENT_EXTENSIONS` is a
+ * subset of `SWEPT_SOURCE_EXTENSIONS`, so no file list can make branch (1) fire while
+ * this file is correct, and no file list makes the real lexer return blanks either. A
+ * check that can only be exercised by editing the source it guards has never been
+ * seen to fail, which is the decoration this file's header warns about. So the suite
+ * hands it a component the lexable set refuses AND a reader that supplies nothing,
+ * and WATCHES BOTH BRANCHES FIRE. Both pass over the real repository.
+ *
+ * THE COMPARISON IS AGAINST THE LEXABLE SET, NOT THE SWEPT SET, AND THE DIFFERENCE IS
+ * DELIBERATE. `sweptSourceFiles` subtracts ruling 2's by-path exemptions, so comparing
+ * against it would turn a future DELIBERATE exemption of one component file into an
+ * integrity failure. `listTrackedSourceFiles` is the question actually being asked:
+ * does `SWEPT_SOURCE_EXTENSIONS` still admit the extensions RULING 13 can read.
+ */
+export const componentSweepProblems = (
+	components = listTrackedFiles().filter(
+		(path) =>
+			COMPONENT_EXTENSIONS.test(path) &&
+			!path.includes('node_modules/') &&
+			existsSync(resolve(root, path)),
+	),
+	lexable = new Set(listTrackedSourceFiles()),
+	read = (path) => readFileSync(resolve(root, path), 'utf8'),
+) => {
+	const problems = [];
+	const unswept = components.filter((path) => !lexable.has(path));
+	if (unswept.length > 0)
+		problems.push(
+			`RULING 13 lexes ${unswept.length} tracked component file(s) that ruling 10 no longer ` +
+				`admits as lexable, starting with ${unswept[0]}. SWEPT_SOURCE_EXTENSIONS must match ` +
+				'every extension RULING 13 knows how to read, or those files go unchecked in silence.',
+		);
+	const withProse = components.filter(
+		(path) => commentsFor(path, read(path)).replaceAll(/\s/g, '').length >= 200,
+	);
+	if (withProse.length < 4)
+		problems.push(
+			`RULING 13's lexer found comment prose in only ${withProse.length} of ` +
+				`${components.length} tracked component file(s). That is too few for this repository, ` +
+				'so the markup lexer broke rather than the prose disappearing - and every component ' +
+				'would have passed vacuously, which is the state this ruling was written to end.',
+		);
+	return problems;
 };
 
 const isExcludedFile = (relativePath) =>
@@ -1177,11 +1409,19 @@ export const scanText = (text, label = '<text>') =>
  * half could only be applied where the corrected sentence names a class this file can
  * count. See `COUNTED_CORPUS_SUBJECTS`.
  *
- * A FOURTH LIMIT IS STRUCTURAL AND IS NOT THIS RULE'S TO FIX. Ruling 10's sweep is
- * scoped to JS/TS because `commentsOnly` is a JS lexer, so the vue lane's `App.vue`
- * and the svelte lane's `+page.svelte` route prose - TWO OF THE SIX LANES - cannot be
- * scanned at all. Their sentences were corrected by hand and deliberately state NO
- * count, because a number written where no check can read it looks guarded and is not.
+ * A FOURTH LIMIT WAS STRUCTURAL AND WAS NOT THIS RULE'S TO FIX - AND T002 FIXED IT
+ * FROM THE OTHER SIDE. Ruling 10's sweep was scoped to JS/TS because `commentsOnly`
+ * is a JS lexer, so the vue lane's `App.vue` and the svelte lane's `+page.svelte`
+ * route prose - TWO OF THE SIX LANES - could not be scanned at all. Their sentences
+ * were corrected by hand and deliberately state NO count, because a number written
+ * where no check can read it looks guarded and is not.
+ *
+ * RULING 13 CLOSED THAT, SO THE REASON FOR THE WORKAROUND IS GONE AND THE WORKAROUND
+ * IS NOT. Those two lanes are lexed and scanned by this rule now, and both files were
+ * MEASURED CLEAN under it - a count stated in them today WOULD be checked. Putting the
+ * counts back is a change to the RECORD and therefore a different card from the one
+ * that changed the CHECK; it is written down here rather than done quietly, so the
+ * next reader does not mistake a deliberate omission for a considered ruling.
  */
 const ANGULAR_LANE_DIR = 'demos/angular-official/src/app';
 
@@ -1367,13 +1607,15 @@ export const sixLaneApplications = (file = CORPUS_TABLE_FILE) => {
  * ruling 10's sweep - every tracked, lexable source file - and there is no list to
  * keep and nothing to exempt.
  *
- * WHAT THAT SCOPE DOES NOT REACH, MEASURED AND WRITTEN DOWN. Ruling 10 is scoped to
+ * WHAT THAT SCOPE DID NOT REACH, AND WHAT T002 DID ABOUT IT. Ruling 10 was scoped to
  * JS/TS because `commentsOnly` is a JS lexer, so `demos/vue-official/src/App.vue` and
- * the four `+page.svelte` route files under `demos/svelte-official/src/routes` - two
- * of the six lanes - ARE STRUCTURALLY INVISIBLE HERE. Their prose was corrected and
- * carries no stated count for that reason: a number written where the guard cannot
- * read it is worse than no number, because it looks checked. THAT LIMIT IS ALSO WHY
- * THIS DOC COMMENT NAMES NO GLOB - a `+page.svelte` path written with a star closes
+ * the `+page.svelte` route files under `demos/svelte-official/src/routes` - two of the
+ * six lanes - WERE STRUCTURALLY INVISIBLE HERE. Their prose was corrected and carries
+ * no stated count for that reason: a number written where the guard cannot read it is
+ * worse than no number, because it looks checked. RULING 13 gave those files a lexer,
+ * so this subject list is now asked of them like any other swept file - measured at
+ * HEAD, they agree with it. THIS DOC COMMENT STILL NAMES NO GLOB, for a reason that
+ * has nothing to do with the scope: a `+page.svelte` path written with a star closes
  * the block comment on its own slash, which is how this very paragraph first broke.
  */
 export const COUNTED_CORPUS_SUBJECTS = [
@@ -1900,6 +2142,10 @@ export const integrityProblems = () => {
 	// integrity check, and it was the one holding the hole ruling 12 closed.
 	problems.push(...thirdPartyIntegrityProblems());
 	problems.push(...sweepProblems());
+	// RULING 13's counterpart to `sweepProblems`, added by T002. The whole-sweep floor
+	// above cannot see 99 component files fall out of scope, and a markup lexer that
+	// returns blanks reads exactly like a repository with no markup prose in it.
+	problems.push(...componentSweepProblems());
 	// Every living top-level doc must be classified. A new one with bare ordinals
 	// cannot slip in unruled, which is how this class survived four sweeps.
 	const classified = new Set([
@@ -1938,10 +2184,12 @@ export const scanRepository = () => {
 	}
 	// RULING 10. Everything else that is checked in and lexable, minus the files
 	// ruling 2 exempts BY PATH. Same detector, same rulings, same reporting again -
-	// a file needs no entry anywhere to be checked, only to be excused.
+	// a file needs no entry anywhere to be checked, only to be excused. RULING 13
+	// chooses the lexer per file: a `.svelte` or `.vue` file is three languages, and
+	// handing it to the JS lexer would read green over the region its prose is in.
 	for (const path of sweptSourceFiles()) {
 		const text = readFileSync(resolve(root, path), 'utf8');
-		const comments = commentsOnly(text);
+		const comments = commentsFor(path, text);
 		violations.push(...scanText(comments, path));
 		// RULING 11's SIX-LANE CHAIN. A THIRD DETECTOR OVER THE PROSE THIS LOOP HAS
 		// ALREADY READ, not a third sweep: the file count above is unchanged and these

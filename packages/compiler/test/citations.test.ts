@@ -26,7 +26,10 @@ import {
 	angularLaneFiles,
 	angularWrapperComponents,
 	classify,
+	commentsFor,
 	commentsOnly,
+	componentComments,
+	componentSweepProblems,
 	corpusApplications,
 	corpusChainIntegrityProblems,
 	corpusLanes,
@@ -49,6 +52,20 @@ import {
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
 const readDoc = (relativePath: string) => readFileSync(resolve(repoRoot, relativePath), 'utf8');
+
+/**
+ * The tracked `.svelte`/`.vue` files, enumerated from `git ls-files` rather than from
+ * the guard's own scope — so an assertion that ruling 13 covers them cannot be
+ * satisfied by the guard agreeing with itself.
+ */
+const trackedComponents = () =>
+	execFileSync('git', ['ls-files', '-z'], {
+		cwd: repoRoot,
+		encoding: 'utf8',
+		maxBuffer: 1 << 28,
+	})
+		.split('\0')
+		.filter((path) => /\.(?:vue|svelte)$/.test(path));
 
 /**
  * T053 — the citation-ordinal guard's own suite.
@@ -815,20 +832,264 @@ describe('T053 citation-ordinal guard', () => {
 			expect(sweepProblems(['a.ts', 'b.ts'])[0]).toContain('only 2 tracked source file(s)');
 		});
 
-		test('`.vue`/`.svelte` are out of the lexer, and that limit is MEASURED not assumed', () => {
-			// Ruling 10 scopes to JS/TS because `commentsOnly` is a JS lexer. The honest
-			// version of that limit is a measurement: no tracked `.vue`/`.svelte` file
-			// carries a comment citation, so the scope hides nothing today.
-			const markup = execFileSync('git', ['ls-files', '-z'], {
-				cwd: repoRoot,
-				encoding: 'utf8',
-				maxBuffer: 1 << 28,
-			})
-				.split('\0')
-				.filter((path) => /\.(vue|svelte)$/.test(path));
+		test('`.vue`/`.svelte` ARE IN THE SWEEP NOW — T002 wrote the lexer ruling 10 lacked', () => {
+			// THIS TEST USED TO ASSERT THE OPPOSITE, and the assertion it made was vacuous
+			// in a way only the replacement exposes: it scanned every component file with
+			// `commentsOnly`, THE WRONG LEXER, which blanks the markup their prose lives in.
+			// It could only ever have found nothing. Ruling 13 gives them the right lexer,
+			// and what is asserted now is membership plus the real measurement.
+			const markup = trackedComponents();
 			expect(markup.length).toBeGreaterThan(0);
-			for (const path of markup)
-				expect(scanText(commentsOnly(readDoc(path)), path)).toEqual([]);
+			const swept = new Set(sweptSourceFiles());
+			for (const path of markup) expect(swept.has(path)).toBe(true);
+			// AND THEY ARE CLEAN UNDER THE LEXER THAT CAN ACTUALLY READ THEM. Ruling 13
+			// turned nothing red, which is a result about these files and not about the
+			// check — the red-capability of the check is proved below, on plants.
+			for (const path of markup) expect(scanText(commentsFor(path, readDoc(path)), path)).toEqual([]);
+		});
+	});
+
+	/**
+	 * T002 RULING 13 — A SINGLE-FILE COMPONENT IS THREE LANGUAGES IN ONE FILE.
+	 *
+	 * The previous board's final audit called the `.svelte`/`.vue` gap "a property of
+	 * the instrument, not a defect to close". It was a missing lexer. Ruling 11's own
+	 * doc comment records what the gap cost: two of the six lanes had their route prose
+	 * written with NO COUNT AT ALL, on purpose, because a number there "looks guarded
+	 * and is not".
+	 *
+	 * EVERY CASE HERE RUNS OFF A SYNTHETIC FIXTURE IN A TEMP DIR, never off repository
+	 * prose, so a future card correcting a comment cannot turn these red — and the
+	 * assertions name the FIRING SITE, because a guard that fires at the wrong line is
+	 * a guard a reader cannot follow.
+	 */
+	describe('T002 ruling 13 — a component is three languages, so it gets three lexers', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'ruling13-'));
+		afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+		const fixture = (name: string, lines: string[]) => {
+			const file = join(dir, name);
+			writeFileSync(file, `${lines.join('\n')}\n`);
+			return { file, text: readFileSync(file, 'utf8') };
+		};
+		const scanFixture = (name: string, lines: string[]) => {
+			const { file, text } = fixture(name, lines);
+			return scanText(commentsFor(file, text), name);
+		};
+
+		/**
+		 * THE PLANT THAT PROVED THE CARD, IN BOTH FILE TYPES. The citation sits on the
+		 * THIRD line of a `<!-- -->` block whose first line carries none — the exact
+		 * shape a line-oriented stripper drops, and the shape both lane route headers
+		 * are written in. Run against the real files it named
+		 * `demos/svelte-official/src/routes/habits/+page.svelte:71:45` and
+		 * `demos/vue-official/src/App.vue:553:45`, then restored byte-identically.
+		 */
+		const CONTINUATION_BLOCK = [
+			'<!--',
+			'\tThis first line carries no citation at all, deliberately.',
+			'\tThe citation is at packages/compiler/src/build.ts:342, on a CONTINUATION',
+			'\tline that a line-oriented stripper would never reach.',
+			'-->',
+		];
+
+		for (const [label, name] of [
+			['svelte', 'route.svelte'],
+			['vue', 'App.vue'],
+		]) {
+			test(`a citation on a CONTINUATION line of a \`<!-- -->\` block fires — ${label}`, () => {
+				const found = scanFixture(name, ['<h1>x</h1>', ...CONTINUATION_BLOCK]);
+				expect(found).toHaveLength(1);
+				expect(found[0].kind).toBe('first-party-ordinal');
+				expect(found[0].path).toBe('packages/compiler/src/build.ts');
+				// THE FIRING SITE. Line 4 is the third line of the block, which starts on
+				// line 2 — so a stripper that kept only the opening line reports nothing.
+				expect(found[0].lineNumber).toBe(4);
+				expect(found[0].column).toBe(CONTINUATION_BLOCK[2].indexOf('packages/') + 1);
+			});
+
+			test(`a \`//\` comment inside \`<script>\` fires — ${label}`, () => {
+				const found = scanFixture(name, [
+					'<script>',
+					'\t// see packages/compiler/src/schema.ts:266 for the shape',
+					'</script>',
+				]);
+				expect(found).toHaveLength(1);
+				expect(found[0].lineNumber).toBe(2);
+				expect(found[0].path).toBe('packages/compiler/src/schema.ts');
+			});
+
+			test(`a \`/* */\` block comment inside \`<script>\` fires across lines — ${label}`, () => {
+				const found = scanFixture(name, [
+					'<script lang="ts">',
+					'\t/**',
+					'\t * see packages/compiler/src/schema.ts:266',
+					'\t */',
+					'\tconst a = 1;',
+					'</script>',
+				]);
+				expect(found).toHaveLength(1);
+				expect(found[0].lineNumber).toBe(3);
+			});
+
+			test(`CODE AND MARKUP ARE NOT PROSE — the separation is the point — ${label}`, () => {
+				// The negative control that was run against the real files too: the same
+				// token planted in code left the guard at exit 0.
+				expect(
+					scanFixture(name, [
+						'<script>',
+						"\tconst where = 'packages/compiler/src/schema.ts:266';",
+						"\timport x from './a/packages/compiler/src/build.ts:342';",
+						'\tconst t = `packages/compiler/src/build.ts:342`;',
+						'</script>',
+						'<p>packages/compiler/src/build.ts:342</p>',
+						'<a href="packages/compiler/src/build.ts:342">x</a>',
+						'{ label + "packages/compiler/src/schema.ts:266" }',
+					]),
+				).toEqual([]);
+			});
+		}
+
+		test('THE DISPATCH IS THE WHOLE FIX — the JS lexer reads a component as blank', () => {
+			// This is what the old scope actually did, stated as a test rather than as a
+			// claim: hand a component to `commentsOnly` and its markup prose vanishes, so
+			// the file reads green no matter what is written in it.
+			const { file, text } = fixture('dispatch.svelte', CONTINUATION_BLOCK);
+			expect(scanText(commentsOnly(text), 'dispatch.svelte')).toEqual([]);
+			expect(scanText(commentsFor(file, text), 'dispatch.svelte')).toHaveLength(1);
+			// And the dispatch is by extension, in both directions.
+			expect(commentsFor('a/b.ts', text)).toBe(commentsOnly(text));
+			expect(commentsFor('a/b.vue', text)).toBe(componentComments(text));
+			expect(commentsFor('a/b.svelte', text)).toBe(componentComments(text));
+		});
+
+		test('A LINE-ORIENTED STRIPPER IS REFUTED HERE, not merely warned about', () => {
+			// The mutation this card was required to survive, written down as an assertion
+			// so nobody re-introduces it: keeping only lines that OPEN a comment recovers
+			// the first line of the block and loses every continuation.
+			const { text } = fixture('lines.svelte', CONTINUATION_BLOCK);
+			const lineOriented = text
+				.split('\n')
+				.map((line) => (/^\s*<!--/.test(line) ? line : ''))
+				.join('\n');
+			expect(scanText(lineOriented, 'lines.svelte')).toEqual([]);
+			expect(componentComments(text)).toContain('packages/compiler/src/build.ts:342');
+		});
+
+		test('`<style>` is CSS, so `/* */` is a comment and `//` is NOT', () => {
+			// `//` inside a `url(https://…)` must not open a comment and swallow the rest
+			// of the line — which is exactly what handing a style block to the JS lexer
+			// would do. Both halves asserted: the real comment fires, the URL does not.
+			const found = scanFixture('styled.vue', [
+				'<style>',
+				'\t.a { background: url(https://example.com/x); }',
+				'\t/* see packages/compiler/src/build.ts:342 */',
+				'\t.b { content: "packages/compiler/src/schema.ts:266"; }',
+				'</style>',
+			]);
+			expect(found).toHaveLength(1);
+			expect(found[0].lineNumber).toBe(3);
+		});
+
+		test('ONE LEFT-TO-RIGHT SCAN, so nesting cannot be double-counted or mis-read', () => {
+			// `<script>` inside a markup comment is comment text; `<!--` inside a script
+			// string is not a comment at all. Two independent passes get both wrong.
+			const commented = scanFixture('nested.svelte', [
+				'<!-- <script> // packages/compiler/src/build.ts:342 </script> -->',
+			]);
+			expect(commented).toHaveLength(1);
+			expect(commented[0].lineNumber).toBe(1);
+			expect(
+				scanFixture('nested2.svelte', [
+					'<script>',
+					"\tconst s = '<!-- packages/compiler/src/build.ts:342 -->';",
+					'</script>',
+				]),
+			).toEqual([]);
+		});
+
+		test('GEOMETRY IS EXACT, including across an ASTRAL character', () => {
+			// The repair `commentsOnly` needed before its output could be spliced. Twelve
+			// tracked files carry astral characters; the old canvas was built by code
+			// point and indexed by UTF-16 unit, so it returned a SHORTER string and every
+			// comment after the first emoji was written at a shifted offset.
+			const astral = 'const star = "\u{1F600}\u{1F600}";\n// packages/compiler/src/build.ts:342\n';
+			expect(commentsOnly(astral)).toHaveLength(astral.length);
+			const found = scanText(commentsOnly(astral));
+			expect(found).toHaveLength(1);
+			expect(found[0].lineNumber).toBe(2);
+			expect(found[0].column).toBe(astral.split('\n')[1].indexOf('packages/') + 1);
+
+			const component = `<script>\n${astral}</script>\n<!-- packages/compiler/src/schema.ts:266 -->\n`;
+			expect(componentComments(component)).toHaveLength(component.length);
+			expect(componentComments(component).split('\n')).toHaveLength(
+				component.split('\n').length,
+			);
+			expect(scanText(componentComments(component)).map((v) => v.lineNumber)).toEqual([3, 5]);
+		});
+
+		test('RULING 11 CAN NOW READ THE TWO LANES IT RECORDED AS INVISIBLE', () => {
+			// The workaround this card exists to make unnecessary: a count stated in a
+			// component's markup is checked, so it no longer "looks guarded without being
+			// it". Driven off a synthetic subject, never off the real corpus table.
+			const subjects = [
+				{
+					subject: 'six-lane applications',
+					noun: String.raw`six-lane\s+applications?`,
+					positionIsDerivable: false,
+					derive: () => ['S10', 'S13'],
+					derivedFrom: 'a synthetic table',
+				},
+			];
+			const { file, text } = fixture('counted.vue', [
+				'<template><p>x</p></template>',
+				'<!--',
+				'\tThis page is one of the NINE SIX-LANE',
+				'\tAPPLICATIONS in this corpus.',
+				'-->',
+			]);
+			const found = scanCountedSubjects(commentsFor(file, text), 'counted.vue', subjects);
+			expect(found).toHaveLength(1);
+			expect(found[0].kind).toBe('stale-derived-count');
+			expect(found[0].lineNumber).toBe(3);
+			// AND IT IS THE LEXER THAT MADE THE DIFFERENCE, not the detector.
+			expect(scanCountedSubjects(commentsOnly(text), 'counted.vue', subjects)).toEqual([]);
+		});
+
+		test('the sweep grew by exactly the tracked component files, and by nothing else', () => {
+			const components = trackedComponents();
+			expect(components.filter((path) => path.endsWith('.svelte')).length).toBeGreaterThan(0);
+			expect(components.filter((path) => path.endsWith('.vue')).length).toBeGreaterThan(0);
+			const swept = new Set(sweptSourceFiles());
+			for (const path of components) expect(swept.has(path)).toBe(true);
+			// The `commentsFor` dispatch covers exactly these and no other swept file.
+			for (const path of sweptSourceFiles())
+				expect(/\.(?:svelte|vue)$/.test(path)).toBe(components.includes(path));
+		});
+
+		test('RULING 13 CANNOT GO QUIET — both integrity branches fire on demand', () => {
+			// Neither branch is drivable by data while this file is correct, which is why
+			// the function takes its inputs as arguments. A check that has only ever been
+			// seen to pass is decoration.
+			expect(componentSweepProblems()).toEqual([]);
+			const prose = `<!--\n${'word '.repeat(80)}\n-->\n`;
+			const four = ['a.svelte', 'b.svelte', 'c.vue', 'd.vue'];
+			expect(componentSweepProblems(four, new Set(four), () => prose)).toEqual([]);
+			// (1) the extensions stop admitting them — silent unsweeping.
+			const unswept = componentSweepProblems(four, new Set(), () => prose);
+			expect(unswept).toHaveLength(1);
+			expect(unswept[0]).toContain('no longer admits as lexable');
+			// (2) the lexer returns blanks — silent vacuity.
+			const blank = componentSweepProblems(four, new Set(four), () => '');
+			expect(blank).toHaveLength(1);
+			expect(blank[0]).toContain('found comment prose in only 0 of 4');
+			// And over the real repository the prose is really there: 52,000-odd
+			// characters that no ruling could read before this card.
+			const kept = trackedComponents().reduce(
+				(total, path) => total + commentsFor(path, readDoc(path)).replaceAll(/\s/g, '').length,
+				0,
+			);
+			expect(kept).toBeGreaterThan(20_000);
 		});
 	});
 

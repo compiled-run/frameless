@@ -44,7 +44,7 @@ goal:
       SHIPPING A GUARD CHANGE THAT LOOKS RIGHT AND HAS NEVER BEEN SHOWN TO FAIL. The previous
       board caught SIX vacuous instruments, two of them the PM's own.
 
-active_task: T002
+active_task: T003
 
 # ---------------------------------------------------------------------------
 # KNOWN WORKING-TREE DIRT - NOT OURS. DO NOT "CLEAN UP", DO NOT `git add -A`.
@@ -177,7 +177,7 @@ tasks:
   - id: T002
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: high
     objective: >-
       EXTEND THE GUARD'S SWEEP TO .svelte AND .vue - the two lane file types no ruling can read.
@@ -213,12 +213,78 @@ tasks:
       - "Any dependency is added, or the owner's three dirty paths are touched. DO NOT `git add -A`."
       - "NEVER pkill -f."
       - "Verification fails twice for the same reason."
-    receipt: null
-
+    receipt:
+      result: done
+      harness: claude-code
+      verification_attempts: 1
+      note: notes/T002-svelte-vue-sweep.md
+      summary: "RULING 13 gives a single-file component THREE LEXERS IN ONE LEFT-TO-RIGHT SCAN: commentsOnly for <script> spliced at its TRUE OFFSET, a TERMINATOR-DRIVEN <!-- --> STATE MACHINE for markup, and CSS block comments for <style>. SWEPT_SOURCE_EXTENSIONS now admits .svelte/.vue: 610 -> 709 swept, 52,189 CHARACTERS OF PREVIOUSLY UNREADABLE PROSE. THE SWEEP FOUND ZERO VIOLATIONS AND THE ZERO IS PROVED THREE WAYS, so nothing was ruled, no exemption added, and NOTHING OUTSIDE allowed_files WAS REACHED FOR. Three mutations shipped as evidence, TWO OF THEM LEAVING check:citations GREEN WHILE THE SUITE WENT RED."
+      my_own_counts: "58 .svelte + 41 .vue = 99 tracked. CITATION-SHAPED TOKENS OVER RAW TEXT: 0 - and RAW TEXT IS A STRICT UPPER BOUND ON ANY LEXER, cross-checked by independent grep. Ruling-11 subject noun mentions: 10. VIOLATIONS FOUND BY TURNING THE SWEEP ON: ZERO. Swept 610 -> 709, A RISE OF EXACTLY 99. Timing 0.673s -> 0.69-0.71s over three samples. PM INDEPENDENTLY CONFIRMED: 709 swept, 58 + 41 tracked."
+      IT_FOUND_A_LATENT_CORRUPTION_NOBODY_HAD_ASKED_ABOUT: "commentsOnly's BLANK CANVAS was built BY CODE POINT and indexed BY UTF-16 OFFSET, so it returned a string 14 UNITS SHORTER THAN ITS INPUT for 12 tracked files - EVERY LANE'S S15 HABIT TRACKER. ITS OWN DOC COMMENT CLAIMED EXACT GEOMETRY; for those files that was FALSE, and this card's splice WOULD HAVE INHERITED THE CORRUPTION in four component files. Repaired and PINNED BY AN ASTRAL FIXTURE."
+      changed_files:
+        - scripts/check-citations.mjs
+        - packages/compiler/test/citations.test.ts
+        - docs/goals/frameless-guard-and-coverage-v1/notes/T002-svelte-vue-sweep.md
+      commands:
+        - cmd: "owner fingerprint START and FINISH"
+          status: pass
+          note: "f326d314 / aeb7edc1 / f936e169, 116 files. `diff` of the full sorted line output IDENTICAL"
+        - cmd: "MEASURE FIRST over RAW TEXT of all 99"
+          status: pass
+          note: "58 + 41 = 99. RAW TEXT carries ZERO citation-shaped tokens and is a STRICT UPPER BOUND on any lexer. Cross-checked by independent grep"
+        - cmd: "RED-CAPABILITY: guarded plants in a REAL .svelte and a REAL .vue"
+          status: pass
+          note: "MARKUP plant on a CONTINUATION LINE of a <!-- --> block: EXIT 1, names habits/+page.svelte:71:45 and App.vue:553:45. SCRIPT // plant: EXIT 1 at :70:14 and :552:13. NEGATIVE CONTROL (same token in CODE): EXIT 0. Restored BYTE-IDENTICALLY, sha256 30475f9d and 85ff8a87. RUNNER ASSERTS plantApplied=true BEFORE BELIEVING ANY RESULT"
+        - cmd: "MUTATION A: componentComments strips nothing"
+          status: pass
+          note: "check:citations STILL EXIT 0 printing 'clean'; 4 ported tests RED"
+        - cmd: "MUTATION C: LINE-ORIENTED stripper - THE stop_if SHAPE"
+          status: pass
+          note: "check:citations STILL EXIT 0 printing 'clean'; 6 ported tests RED. THE stop_if REFUTED BY MEASUREMENT, NOT BY WARNING"
+        - cmd: "MUTATION B: componentComments returns blanks"
+          status: pass
+          note: "check:citations EXIT 1 - the NEW ANTI-VACUITY CHECK names it: 'found comment prose in only 0 of 99 tracked component file(s)'. 17 tests RED. PM INDEPENDENTLY REPRODUCED THIS MUTATION: digest 74137bf1, check EXIT 1; restored e79cd670"
+        - cmd: "guard digest across all three mutations"
+          status: pass
+          note: "e79cd670...af6c4 before and after - IDENTICAL"
+        - cmd: "PORT THE PLANTS: 16 tests off SYNTHETIC .svelte/.vue fixtures in a temp dir"
+          status: pass
+          note: "Assert the FIRING SITE (line AND column). Cover continuation-line markup, // and /* */ in <script>, /* */ in <style> with `//` NOT a comment, one-scan nesting both ways, the dispatch, ASTRAL GEOMETRY, ruling-11 over a component, and both integrity branches. NEVER off repository prose"
+        - cmd: "pnpm check START (own paths stashed BY NAME) and END"
+          status: pass
+          note: "261 -> 261. DELTA 0"
+        - cmd: "pnpm test"
+          status: pass
+          note: "1490 -> 1506 passed. RISE OF EXACTLY 16 = the tests added. Failures STILL EXACTLY 1 (foreign ARM B)"
+        - cmd: "pnpm e2e RUN ALONE"
+          status: pass
+          note: "PASS - 6 demos x 9 scenarios"
+        - cmd: "pnpm lint"
+          status: pass
+          note: "0/0 over 558 files. ONE WARNING WAS RAISED BY ITS OWN `new Array(n)` AND FIXED; guard re-verified and MUTATIONS RE-RUN AGAINST THE FINAL BYTES"
+        - cmd: "pnpm check:citations BEFORE and AFTER"
+          status: pass
+          note: "4 / 17 / 610 -> 4 / 17 / 709. THE SWEEP DID NOT SHRINK; it rose by EXACTLY 99"
+        - cmd: "21 derived trees asserted EXIST and NON-EMPTY FIRST, git diff --exit-code, SHELL ARRAY, NO WILDCARD"
+          status: pass
+          note: "Clean, and RE-RUN AFTER e2e - still clean. THIS CARD DERIVED NOTHING"
+      deviations:
+        - "PLANTED IN AND BYTE-IDENTICALLY RESTORED a real .svelte and a real .vue OUTSIDE allowed_files, BECAUSE VERIFY ITEM 5 MANDATES A PLANT IN BOTH. Neither allowed file is readable by the guard - both exempt by path under ruling 2 as SPECIMEN TEXT - so the plant had to land elsewhere. Zero net change. Same boundary T001 and T005 hit; the PM accepts."
+        - "SHIPPED A <style> LEXER THAT NO REPOSITORY FILE EXERCISES. The card named THREE comment forms; MEASUREMENT FOUND A FOURTH CONTAINER - zero tracked components have a <style> block today, so leaving it out WOULD HAVE CREATED A SILENT HOLE OF EXACTLY THE CLASS THIS CARD CLOSES. Exercised by a synthetic test, and `//` is deliberately NOT a comment there because url(https://...) WOULD SWALLOW THE LINE."
+        - "REPAIRED commentsOnly's BLANK CANVAS, NOT IN THE CARD - see the latent corruption above."
+        - "CORRECTED FOUR PARAGRAPHS OF THE GUARD'S OWN PROSE that this change makes false - ruling 10's scope paragraph and unswept-container table, ruling 11's 'FOURTH LIMIT IS STRUCTURAL', and the COUNTED_CORPUS_SUBJECTS scope note. Leaving them would be STALE PROSE IN THE ONE FILE WHOSE ENTIRE PURPOSE IS THAT PROSE DOES NOT ROT."
+        - "REWROTE ONE EXISTING TEST RATHER THAN DELETING IT. `'.vue/.svelte are out of the lexer'` asserted the OPPOSITE of this card - AND ITS ASSERTION WAS VACUOUS: it scanned every component with commentsOnly, THE WRONG LEXER, which blanks the markup their prose lives in, SO IT COULD ONLY EVER HAVE FOUND NOTHING."
+      remaining_blockers:
+        - "RECORDED, NOT REACHED - THE GUARD'S OWN DISCLOSURE HAD ROTTED. Ruling 10 said '.vue/.svelte 43 files, ZERO'. Tracked today: 99. THE ZERO HELD; THE FILE COUNT DID NOT - inside the paragraph that argues for the guard, in the file ruling 2 exempts FROM the guard. Corrected in place. THE CARD'S 99 WAS RIGHT AND THE REPOSITORY WAS WRONG - and the same paragraph's OTHER container figures (.tsrx 62, .html 13, .json 5/62, .md 93/1214) WERE NOT RE-MEASURED AND SHOULD BE ASSUMED ROTTEN TOO."
+        - "RECORDED, NOT REACHED - THE WORKAROUND THIS CARD MAKES UNNECESSARY IS STILL IN THE RECORD. Ruling 11 documented that svelte and vue route prose deliberately state NO COUNT because a number there 'looks guarded and is not'. THAT REASON IS NOW GONE: both files are lexed, scanned and measured clean, so a count stated there WOULD be checked. Putting the counts back changes the RECORD, not the CHECK, and editing demo prose is a stop_if here. NEEDS A CARD."
+        - "RECORDED, NOT REACHED - TWO POSITION CLAIMS RULING 11'S REGEX CANNOT SEE, in the two lanes it just gained: 'It is a SIX-LANE APPLICATION, and the FIRST that was designed to be so' at svelte habits/+page.svelte:8 and vue App.vue:352. The ordinal FOLLOWS the noun in a separate clause and the rule requires <ordinal> ... <noun>. IT DELIBERATELY DID NOT WIDEN THE REGEX - matching an ordinal after the noun fires across ordinary prose, THE 'CRIES WOLF' FAILURE RULING 9 DECLINED TO RISK. WHETHER 'the first that was DESIGNED to be so' IS A FORBIDDEN POSITION CLAIM OR A TRUE STATEMENT ABOUT DESIGN INTENT IS A RULING, AND RULINGS ARE NOT A WORKER'S."
+        - "NOT A BLOCKER: the remaining unswept containers (.tsrx, .html, .yaml, .json, .md) are untouched. Each needs its own ruling and lexer."
+        - "UNTOUCHED AND STILL THE OWNER'S: the 374 ordinal-less path mentions."
+      stopped_because: null
   - id: T003
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     reasoning_hint: high
     objective: >-
       MEASURE THE DRAG IN FIREFOX, PER LANE, AND MAKE EVERY DRAG CLAIM IN THE REPO NAME ITS
