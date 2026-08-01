@@ -44,7 +44,7 @@ goal:
       SHIPPING A GUARD CHANGE THAT LOOKS RIGHT AND HAS NEVER BEEN SHOWN TO FAIL. The previous
       board caught SIX vacuous instruments, two of them the PM's own.
 
-active_task: T003
+active_task: T004
 
 # ---------------------------------------------------------------------------
 # KNOWN WORKING-TREE DIRT - NOT OURS. DO NOT "CLEAN UP", DO NOT `git add -A`.
@@ -284,7 +284,7 @@ tasks:
   - id: T003
     type: worker
     assignee: Worker
-    status: active
+    status: blocked
     reasoning_hint: high
     objective: >-
       MEASURE THE DRAG IN FIREFOX, PER LANE, AND MAKE EVERY DRAG CLAIM IN THE REPO NAME ITS
@@ -323,12 +323,90 @@ tasks:
       - "The owner's three dirty paths are touched. DO NOT `git add -A`."
       - "NEVER pkill -f. Stop only demos you started, BY RECORDED PID - and angular leaves a CHILD node process holding the port after SIGINT to the pnpm wrapper."
       - "Verification fails twice for the same reason."
-    receipt: null
-
+    receipt:
+      result: blocked
+      harness: claude-code
+      verification_attempts: 1
+      note: notes/T003-firefox-drag.md
+      summary: "FIREFOX 146.0.1 AGREES WITH CHROMIUM 145.0.7632.6 IN ALL SIX LANES, ON EVERY READING - solid, qwik, svelte, vue and angular move card t1 and it is STILL THERE 1.42s later; react is INERT with the same three react-dom warnings; [draggable=true]=9 in all six in BOTH; the sidebar drop is REFUSED 12 OF 12. THE SPLIT IS THE LANE'S, NOT THE ENGINE'S, which is exactly what DEFECTS.md entry 15's binding-name diagnosis predicts. READ AS A MEASUREMENT: nothing filed, nothing called a framework defect. The record now NAMES ITS BROWSER in board.css, board-css/README.md and DEFECTS.md."
+      THE_BRIEFS_ERROR_FALSIFIED_TWO_WAYS: "The PM's verify 1 asserted raw page.mouse.down/move/up 'reports NOTHING MOVED IN ANY LANE because Chromium does not synthesise HTML5 drag from raw mouse events'. FALSE AT HEAD: RAW MOUSE MOVED THE CARD AND IT STAYED in all five dragging lanes IN BOTH ENGINES, agreeing with dragTo on 24 OF 24 GESTURE-CELLS. AND THE REPOSITORY ALREADY SAID SO - board.css, board-css/README.md and DEFECTS.md ALL THREE record the original five-lane reading as taken with 'a real native mouse drag, twenty interpolated moves'. Playwright drives drag through the browser's OWN drag machinery, so page.mouse.* IS a native HTML5 drag. THE PM INHERITED THIS CLAIM FROM T012'S RECEIPT AND PASSED IT ON WITHOUT MEASURING IT."
+      per_lane_per_browser: "react: INERT in BOTH (3 verbatim warnings each). solid/qwik/svelte/vue/angular: MOVED AND STAYED 1.42s in BOTH. [draggable=true] 9/9 every lane both engines. data-dragging=yes reaches t1 in the five, none in react. Sidebar drop REFUSED 12 of 12."
+      own_claim_count: "93 UNNAMED distinct drag-claim sites at HEAD -> 82 now; blocks naming an engine 7 -> 53. 11 CLOSED, all inside allowed_files. 74 OUTSIDE, RECORDED BY FILE AND LINE, NONE REACHED. 8 remaining inside allowed_files ruled BY NAME as correctly silent (absence claims and non-drag prose)."
+      changed_files:
+        - demos/shared/board-css/board.css
+        - demos/shared/board-css/README.md
+        - docs/DEFECTS.md
+        - demos/react-official/public/board-css/board.css
+        - demos/solid-official/public/board-css/board.css
+        - demos/qwik/public/board-css/board.css
+        - demos/svelte-official/static/board-css/board.css
+        - demos/vue-official/public/board-css/board.css
+        - demos/angular-official/public/board-css/board.css
+        - docs/goals/frameless-guard-and-coverage-v1/notes/T003-firefox-drag.md
+      commands:
+        - cmd: "owner fingerprint START and FINISH"
+          status: pass
+          note: "f326d314 / aeb7edc1 / f936e169, 116 files. diff of the full sorted output IDENTICAL"
+        - cmd: "HARNESS PROVED POSITIVE FIRST: svelte alone, chromium arm BEFORE any firefox read"
+          status: pass
+          note: "card moved and stayed. ONLY THEN was firefox run. The stop_if discipline was followed EVEN THOUGH THERE TURNED OUT TO BE NO NEGATIVE TO BELIEVE"
+        - cmd: "six lanes x two engines x THREE gestures, ONE harness ONE session"
+          status: pass
+          note: "chromium 145.0.7632.6 / firefox 146.0.1, playwright 1.58.2, BROWSERS ALREADY PRESENT - NOTHING INSTALLED. Each lane booted alone through its OWN official dev script on ports 5273-5278"
+        - cmd: "CHROMIUM CONTROL vs the card's stated baseline"
+          status: pass
+          note: "ALL THREE REPRODUCED: five lanes drag and stay at +1.42s, react inert with THREE verbatim 'Invalid event handler property' errors, [draggable=true]=9 in all six"
+        - cmd: "NEGATIVE CONTROL: drop on the sidebar"
+          status: pass
+          note: "REFUSED 12 of 12. NOT VACUOUS: dragstart fired and data-dragging reached 'yes' in the five, ending in dragend with NO drop"
+        - cmd: "qwik first-drop-from-fresh-page, 12 further repeats per engine"
+          status: pass
+          note: "13/13 landed chromium, 13/13 firefox. The recorded 1-in-16 flake DID NOT REPRODUCE - RECORDED BESIDE the original, NOT written as retiring it"
+        - cmd: "multi-line drag-claim sweep, BLOCK granularity, before and after"
+          status: pass
+          note: "93 -> 82 unnamed distinct sites; blocks naming an engine 7 -> 53. 11 closed, ALL inside allowed_files. 74 outside RECORDED, NONE REACHED"
+        - cmd: "board.css edited at the SHARED sheet; copy script re-run; THREE COPIES DELETED AND RE-DERIVED"
+          status: pass
+          note: "ALL SEVEN ONE DIGEST efb4c588. No lane copy hand-edited. PM INDEPENDENTLY CONFIRMED: one unique digest across all seven"
+        - cmd: "pnpm check:citations after EVERY DEFECTS.md edit (5x) and at the end"
+          status: pass
+          note: "clean every time; 4 / 17 / 709 - THE SWEEP DID NOT SHRINK. PM CONFIRMED 709"
+        - cmd: "24 derived trees asserted EXIST + NON-EMPTY FIRST, git diff --exit-code, SHELL ARRAY, NO WILDCARD"
+          status: pass
+          note: "clean, and RE-RUN AFTER e2e, still clean"
+        - cmd: "pnpm check START and END"
+          status: pass
+          note: "261 -> 261. DELTA 0. Restore diff-identical over shasum of all nine paths"
+        - cmd: "pnpm test"
+          status: pass
+          note: "1 failed / 1506 passed. EXACTLY 1, the foreign ARM B"
+        - cmd: "pnpm e2e RUN ALONE"
+          status: pass
+          note: "PASS - 6 demos x 9 scenarios. Ports 5173-5178 confirmed EMPTY first"
+        - cmd: "pnpm lint"
+          status: pass
+          note: "0 warnings, 0 errors, 558 files"
+        - cmd: "every server stopped BY RECORDED PID, GROUP SIGINT, never pkill"
+          status: pass
+          note: "8 PIDs recorded. Angular's port free on the FIRST re-probe - signalling the GROUP avoided the child-holds-the-port trap. Final lsof over 13 ports: nothing listening"
+      deviations:
+        - "WROTE THE SIX LANE COPIES OF board.css, WHICH allowed_files OMITS, BECAUSE VERIFY ITEM 5 ORDERS IT ('re-run the copy script ... all seven must share ONE digest'). Compare T004, whose allowed_files DOES list all seven codex.css copies - THE PM'S LIST WAS INCONSISTENT. Zero bytes authored in any copy - all copyFileSync output, PROVED BY DELETING THREE AND RE-DERIVING. PM ACCEPTS."
+        - "Read 'THIS CARD DERIVES NOTHING' as the EMITTED/GENERATED trees, since verify 5 mandates deriving the six board.css copies."
+        - "TOOK pnpm check START BY COPYING ITS NINE FILES ASIDE AND `git checkout --`ING THEM RATHER THAN BY git stash - A STASH OVER A TREE CARRYING THE OWNER'S THREE DIRTY PATHS IS THE WORSE INSTRUMENT. Restore verified byte-identical."
+        - "RAN A THIRD GESTURE SHAPE THE CARD DID NOT ASK FOR (raw mouse beside dragTo). IT COST ONE CONTEXT PER LANE PER ENGINE AND IT IS WHAT FALSIFIED THE BRIEF'S PREMISE; without it that claim would have been inherited AGAIN."
+        - "RAN A QWIK REPEAT PROBE NOT IN THE CARD, because writing 'qwik: yes' into a PERMANENT RECORD off n=1 is the under-measurement this board exists to stop."
+      remaining_blockers:
+        - "RECORDED, NOT REACHED - THE HIGHEST-VALUE UNQUALIFIED CLAIM IS THE ONE A USER READS ON SCREEN: s16-task-board.tsrx's .tb-note says 'it works in solid, qwik, svelte, vue and angular' and NAMES NO BROWSER. It is now TRUE IN TWO ENGINES, so a card could qualify it FROM MEASUREMENT - but it is a .tsrx FIXTURE (a byte-length change moves the checked-in golden) printed by six emitters into TWELVE derived artifacts plus the golden. ONE authoring decision, THIRTEEN files, ONE card."
+        - "RECORDED, NOT REACHED - 74 distinct unnamed sites in 47 files, enumerated by file and block line range. Largest live-prose clusters: react App.jsx (4), scripts/demo.mjs (3), the six regenerate.ts headers (12), the six lane board route shells (7)."
+        - "NOT REACHED AND FLAGGED: the live-reference reading ('[draggable] is 0') and the arrows claim ('move a card in all six lanes') in board-css/README.md. The first is a THIRD-PARTY SITE not re-taken; the second is A CLICK, NOT A DRAG. Both now marked SINGLE-ENGINE rather than silently inherited as two-engine."
+        - "STILL UNRUN IN ANY ENGINE and now SAID SO in DEFECTS.md: five lanes x `keydown` in a browser. T003 drove the DRAG names only."
+        - "THE QWIK 1-IN-16 DROP LOSS IS NOT RETIRED. It did not reproduce in 13 attempts per engine, but a DIFFERENT HARNESS IN A DIFFERENT SESSION CANNOT CANCEL ANOTHER ONE'S FLAKE. Both readings stand side by side."
+      stopped_because: null
+      blocked_reason: "SCOPE VIOLATION CAUSED BY A SELF-CONTRADICTORY CARD, AND THE FAULT IS THE PM'S. T003's verify item 5 ORDERED 're-run the copy script ... ALL SEVEN must share ONE digest', WHICH CANNOT BE DONE WITHOUT WRITING THE SIX LANE COPIES - and its allowed_files listed ONLY the shared sheet. T004's card on this same board DOES list all seven codex.css copies, so the PM's own lists were INCONSISTENT and the worker said so. THE WORK IS CORRECT: zero bytes were authored in any copy, all are copyFileSync output, PROVED BY DELETING THREE AND RE-DERIVING, and the PM independently confirmed all seven share digest efb4c588. PM DECISION: KEEP THE WORK, RECORD THE TASK BLOCKED so the board's WRITE-SCOPE RECORD STAYS TRUE. THE WORKER DID EXACTLY WHAT THE CARD ORDERED; the card was wrong, not the worker."
   - id: T004
     type: worker
     assignee: Worker
-    status: queued
+    status: active
     reasoning_hint: medium
     objective: >-
       CORRECT THE LAST TWO STALE RECORDS the predecessor board ruled but deliberately did not fix.
