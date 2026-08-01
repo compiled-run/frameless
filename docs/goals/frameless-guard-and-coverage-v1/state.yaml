@@ -44,7 +44,7 @@ goal:
       SHIPPING A GUARD CHANGE THAT LOOKS RIGHT AND HAS NEVER BEEN SHOWN TO FAIL. The previous
       board caught SIX vacuous instruments, two of them the PM's own.
 
-active_task: T001
+active_task: T005
 
 # ---------------------------------------------------------------------------
 # KNOWN WORKING-TREE DIRT - NOT OURS. DO NOT "CLEAN UP", DO NOT `git add -A`.
@@ -75,7 +75,7 @@ tasks:
   - id: T001
     type: worker
     assignee: Worker
-    status: active
+    status: blocked
     reasoning_hint: high
     objective: >-
       CLOSE THE CITATION GUARD'S RENAME/DELETE BLIND SPOT. A citation to a path that does not
@@ -117,8 +117,63 @@ tasks:
       - "Any dependency is added, or pnpm-lock.yaml / pnpm-workspace.yaml / website/ is touched. DO NOT `git add -A`."
       - "NEVER pkill -f. Stop only what you start, BY ITS RECORDED PID."
       - "Verification fails twice for the same reason."
-    receipt: null
-
+    receipt:
+      result: blocked
+      harness: claude-code
+      verification_attempts: 1
+      note: notes/T001-dangling-citations.md
+      blocked_reason: "THE CARD'S CENTRAL PREMISE IS FALSE AND THE WORKER FALSIFIED IT THREE WAYS. A dangling first-party citation does NOT escape every ruling: classify falls PAST resolvesInRepo into a final violation of kind `unclassified-path`, and the prose above THIRD_PARTY_TARGETS already says so. The assigned fix is A NO-OP. Shipping a guard change here would mean shipping one with no mutation proof, which is itself a stop_if. CORRECTLY BLOCKED."
+      THE_PMS_MEASUREMENT_WAS_VACUOUS_AND_THE_PM_CONFIRMED_IT: "THE PM'S 'EXIT 0' WAS THE SEVENTH VACUOUS INSTRUMENT ON THIS PROJECT AND IT WAS THE PM'S OWN. Its python `.replace()` targeted the string 'S17 IS THE FOURTH ROW' in scripts/demo.mjs - BUT T012 REWROTE THAT COMMENT EARLIER IN THE SAME SESSION, so the replace matched NOTHING and wrote the file back UNCHANGED. THE PLANT NEVER EXISTED. PM RE-VERIFIED AT HEAD: `grep -c 'S17 IS THE FOURTH ROW'` = 0, and the SAME token inserted into a REAL comment yields 'check-citations: 1 problem(s)'. THE GUARD CATCHES IT. The worker was right and the PM's brief was built on nothing."
+      BUT_THE_HOLE_IS_REAL_AND_THE_WORKER_FOUND_THE_ACTUAL_ONE: "FINDING 4a, PM INDEPENDENTLY CONFIRMED AT HEAD: `thirdPartyRuling` is consulted BEFORE `resolvesInRepo` AND MATCHES ON SUFFIX, so a citation to `packages/compiler/src/core.mjs:42` - A FIRST-PARTY PATH THAT DOES NOT EXIST - EXITS 0 AND ESCAPES EVERY RULING. `ls` confirms no such file. THIS IS A GENUINE RENAME/DELETE BLIND SPOT reached by a DIFFERENT ROUTE than the card described: any first-party file whose basename collides with a third-party target's suffix can be renamed or deleted and its citations go silently unchecked. Ruling 5 got WHOLE-PATH matching for exactly this reason; RULING 4 NEVER DID."
+      AND_FINDING_4b: "THIRD_PARTY_TARGETS is THE ONE EXEMPTION LIST WITH NO INTEGRITY CHECK - every other list is existence-checked in integrityProblems. This is the card's own warning - 'a dangling exemption is the same bug one level up' - ALREADY PRESENT IN THE FILE, and it is the only item that fits the original allowed_files."
+      dangling_citation_count: "ORDINAL-BEARING citations the card names: ZERO - and NOT because they are unchecked, but BECAUSE THE GUARD ALREADY FAILS EVERY ONE, verified by plant. THE REAL POPULATION IS THE INVERSE CLASS: ORDINAL-LESS PATH MENTIONS, NEVER CLASSIFIED AT ALL. 374 sites repo-wide, 753 under root-only resolution, 118 in the inner ring (4 watched docs + 17 watched source), 84 distinct paths. SELF-INFLICTED: five cards spent forcing citations to DROP ORDINALS moved them into the one shape findCitations never classifies."
+      changed_files:
+        - docs/goals/frameless-guard-and-coverage-v1/notes/T001-dangling-citations.md
+      commands:
+        - cmd: "pnpm check:citations BEFORE"
+          status: pass
+          note: "exit 0; 4 watched docs / 17 watched source / 610 swept; 0.725s"
+        - cmd: "plant the PM's exact token in a COMMENT in scripts/demo.mjs"
+          status: pass
+          note: "EXIT 1, named scripts/demo.mjs:3:18, kind unclassified-path - FALSIFIES THE CARD'S PREMISE"
+        - cmd: "restore scripts/demo.mjs"
+          status: pass
+          note: "exit 0; sha256 cb452208...d095898 IDENTICAL before and after; git diff clean"
+        - cmd: "probe: commentsOnly placement matrix"
+          status: pass
+          note: "token fires in a // comment (1 violation); BLANKED in string/template/code (0) - ruling 8 working as designed"
+        - cmd: "probe: scanText over WATCHED + WATCHED_SOURCE + sweptSourceFiles, THREE resolution models"
+          status: pass
+          note: "1239 mentions; dangling ordinal-less 753 / 573 / 374 sites; inner ring 118, 84 distinct paths"
+        - cmd: "probe: classify negative controls"
+          status: pass
+          note: "existing path, absolute, node_modules, URL, bare package ALL correct; third-party branch REACHABLE on 4 inputs"
+        - cmd: "derived-tree assertion + git diff --exit-code, SHELL ARRAY, NO WILDCARD"
+          status: pass
+          note: "all 20 trees exist and non-empty FIRST; diff clean"
+        - cmd: "pnpm check:citations AFTER"
+          status: pass
+          note: "identical 4 / 17 / 610; 0.664s; THE SWEEP DID NOT SHRINK"
+        - cmd: "pnpm lint"
+          status: pass
+          note: "0 warnings, 0 errors, 558 files"
+        - cmd: "owner fingerprint START and FINISH"
+          status: pass
+          note: "f326d314 / aeb7edc1 / f936e169, 116 files; diff of the full sorted line output IDENTICAL"
+        - cmd: "PM INDEPENDENT RE-VERIFICATION"
+          status: pass
+          note: "grep -c 'S17 IS THE FOURTH ROW' = 0, PROVING THE PM'S PLANT NEVER APPLIED. Same token in a real comment -> 1 problem. AND finding 4a reproduced: core.mjs:42 does not exist yet exits 0"
+      deviations:
+        - "Temporarily planted and BYTE-IDENTICALLY restored a probe in scripts/demo.mjs (outside allowed_files) BECAUSE VERIFY ITEM 3 MANDATED THE PLANT AND NAMED THAT EXACT FILE AND TOKEN. Digest identical before/after, git diff clean, zero net change. THE PM ACCEPTS THIS - the card ordered it."
+        - "Ran the sweep under THREE resolution models rather than one, because a root-only model reports 753 sites that are ALMOST ALL CORRECT SHORTHAND; reporting a single inflated number WOULD HAVE MISLED THE RULING."
+        - "pnpm check / test / e2e NOT RUN AND SAID SO: ZERO EXECUTABLE BYTES CHANGED - check-citations.mjs and citations.test.ts are byte-identical to HEAD. Those gates carry no signal for a card that shipped no code. DISCLOSED RATHER THAN SKIPPED QUIETLY. PM ACCEPTS."
+      remaining_blockers:
+        - "FINDING 4a IS THE REAL, IN-SCOPE FIX AND IS NOW T005: thirdPartyRuling runs BEFORE resolvesInRepo and matches on SUFFIX, so a non-existent first-party path is ALLOWED. PM CONFIRMED core.mjs:42 exits 0."
+        - "FINDING 4b IS ALSO IN SCOPE AND IS NOW T005: THIRD_PARTY_TARGETS is the ONE exemption list with no integrity check."
+        - "374 ORDINAL-LESS PATH MENTIONS ARE A TAXONOMY DECISION RESERVED TO THE OWNER, NOT A WORKER CALL AND NOT THE PM'S TO TAKE UNILATERALLY. Deciding which shorthand register the repository keeps changes what 374 sites must look like. ESCALATED, NOT LAUNCHED."
+      spawned_tasks:
+        - T005
+      stopped_because: "Card premise refuted by measurement; the assigned change is a no-op, and the genuine adjacent hole needed a re-scoped card. THE WORKER WAS RIGHT TO BLOCK RATHER THAN SHIP A NO-OP WITH NO MUTATION PROOF."
   - id: T002
     type: worker
     assignee: Worker
@@ -267,4 +322,56 @@ tasks:
       - "full_outcome_complete: true | false"
       - "each oracle part, quoted verbatim, certified or refused"
       - "next task if not complete"
+    receipt: null
+
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: high
+    objective: >-
+      CLOSE THE REAL RENAME/DELETE BLIND SPOT T001 FOUND, which is NOT the one T001's card
+      described. `thirdPartyRuling` is consulted BEFORE `resolvesInRepo` AND MATCHES ON SUFFIX, so
+      a citation to a FIRST-PARTY PATH THAT DOES NOT EXIST is ALLOWED whenever its basename
+      collides with a third-party target. AND close finding 4b: THIRD_PARTY_TARGETS is the ONE
+      exemption list with no integrity check.
+    THE_PM_CONFIRMED_BOTH_AT_HEAD: >-
+      A planted citation to `packages/compiler/src/core.mjs:42` - `ls` confirms NO SUCH FILE -
+      leaves `pnpm check:citations` at EXIT 0. Restored, exit 0. Ruling 5 got WHOLE-PATH matching
+      for exactly this reason; RULING 4 NEVER DID.
+    AND_THE_PM_OWNS_THE_ERROR_THAT_SENT_T001_WRONG: >-
+      T001's card asserted dangling citations escape EVERY ruling. THEY DO NOT - classify falls
+      past resolvesInRepo to `unclassified-path`. The PM's supporting measurement was VACUOUS: its
+      `.replace()` targeted a comment T012 HAD ALREADY REWRITTEN, so the plant never existed.
+      SEVENTH VACUOUS INSTRUMENT ON THIS PROJECT, AND THE PM'S OWN. DO NOT INHERIT ANY CLAIM IN
+      THIS CARD WITHOUT RE-MEASURING IT.
+    allowed_files:
+      - "scripts/check-citations.mjs"
+      - "packages/compiler/test/citations.test.ts"
+      - "docs/goals/frameless-guard-and-coverage-v1/notes/T005-suffix-hole.md"
+    verify:
+      - "RE-MEASURE BOTH FINDINGS YOURSELF BEFORE CHANGING ANYTHING. Plant a citation to a NON-EXISTENT first-party path whose basename collides with a THIRD_PARTY_TARGETS entry, and show it passing at HEAD. Then enumerate which THIRD_PARTY_TARGETS entries are suffix-matchable in this way and REPORT YOUR OWN COUNT."
+      - "FIX 4a BY ORDERING OR BY WHOLE-PATH MATCHING, FOLLOWING RULING 5'S OWN PRECEDENT - read how ruling 5 does it and match its shape rather than inventing one. A first-party-looking path that does not resolve MUST NOT be rescued by a suffix match."
+      - "FIX 4b: give THIRD_PARTY_TARGETS an integrity check like every other exemption list, in `integrityProblems`. NOTE THE ASYMMETRY AND HANDLE IT: entries here are PUBLISHED third-party targets that DO NOT resolve in this repo by design, so the check CANNOT be existence-of-file. Decide what integrity MEANS for this list - shape, reachability, no-shadowing-a-real-path - STATE YOUR CHOICE AND WHY, and make it fail on a real defect."
+      - "RED-CAPABILITY, MANDATORY FOR BOTH FIXES: plant the real failing shape, show `pnpm check:citations` FAILING and naming file:line, restore BYTE-IDENTICALLY, report sha256 both times."
+      - "PORT THE PLANTS into citations.test.ts asserting the FIRING SITE, driven off a SYNTHETIC fixture in a temp dir - never repository prose."
+      - "MUTATION PROOF: break each new detector so it returns no problems and show the ported tests RED while `pnpm check:citations` STILL EXITS 0. Restore byte-identically, report digests. THE PREVIOUS BOARD PROVED A NEUTERED DETECTOR STILL PRINTS 'agreed with the prose' AND EXITS 0."
+      - "NEGATIVE CONTROLS: a REAL third-party citation must still pass - prove the branch is reachable, not dead - and an EXISTING first-party path must not fire."
+      - "IF YOUR FIX TURNS THE REPOSITORY RED on existing prose, ENUMERATE EVERY SITE AND RULE IT. If a real stale citation is outside allowed_files, RECORD IT, DO NOT REACH - T001 was blocked for precisely this boundary and was right."
+      - "pnpm check:citations must still sweep at least 4 watched documents / 17 watched source / 610 swept. Report BEFORE and AFTER, and timing."
+      - "THIS CARD DERIVES NOTHING. git diff --exit-code over every derived tree, EACH ASSERTED TO EXIST AND BE NON-EMPTY FIRST, NO WILDCARD PATHSPEC, SHELL ARRAY, paired with git status --short."
+      - "pnpm check BASELINE 261 PREDICTED DELTA 0, MEASURE START YOURSELF / pnpm test passed BEFORE and AFTER rising by exactly the tests added, failures STILL EXACTLY 1 / pnpm e2e 6 x 9 RUN ALONE / pnpm lint. THIS CARD SHIPS CODE, so unlike T001 all three gates carry signal and MUST be run."
+      - "fingerprint the owner's three dirty paths at START and FINISH: f326d314 / aeb7edc1 / f936e169, 116 files."
+    stop_if:
+      - "Need files outside allowed_files. RECORD, DO NOT REACH."
+      - "You are about to ship EITHER fix without a mutation showing your own tests RED."
+      - "You are about to 'fix' the 374 ORDINAL-LESS PATH MENTIONS or change how they are classified. THAT IS AN OWNER-LEVEL TAXONOMY DECISION AND IT IS NOT YOURS - it changes what 374 sites must look like."
+      - "You are about to weaken any existing ruling to make the repository pass."
+      - "You are about to add an exemption entry to dodge a real finding."
+      - "You are about to edit a .tsrx fixture. NONE IS IN SCOPE."
+      - "pnpm check rises at all. BASELINE 261, PREDICTED DELTA 0."
+      - "pnpm test failures exceed exactly 1, or pnpm e2e leaves 6 x 9."
+      - "The owner's three dirty paths are touched. DO NOT `git add -A`."
+      - "NEVER pkill -f."
+      - "Verification fails twice for the same reason."
     receipt: null
