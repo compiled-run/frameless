@@ -44,7 +44,7 @@ goal:
       SHIPPING A GUARD CHANGE THAT LOOKS RIGHT AND HAS NEVER BEEN SHOWN TO FAIL. The previous
       board caught SIX vacuous instruments, two of them the PM's own.
 
-active_task: T008
+active_task: T999
 
 # ---------------------------------------------------------------------------
 # KNOWN WORKING-TREE DIRT - NOT OURS. DO NOT "CLEAN UP", DO NOT `git add -A`.
@@ -500,7 +500,7 @@ tasks:
   - id: T999
     type: judge
     assignee: Judge
-    status: queued
+    status: active
     reasoning_hint: high
     objective: "FINAL AUDIT. Certify all three oracle parts, or refuse."
     scope:
@@ -833,7 +833,7 @@ tasks:
   - id: T008
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: medium
     objective: >-
       CORRECT THE LAST RECORDED SITE OF THE FAMILY: the 12b domain phrase 'every
@@ -874,4 +874,49 @@ tasks:
       - "The owner's three dirty paths are touched. DO NOT `git add -A`."
       - "NEVER pkill -f."
       - "Verification fails twice for the same reason."
-    receipt: null
+    receipt:
+      result: done
+      harness: claude-code
+      note: notes/T008-domain-phrase.md
+      changed_files:
+        - packages/frameworks/vue/src/gate/index.ts
+        - packages/frameworks/vue/test/gate.test.ts
+        - docs/goals/frameless-guard-and-coverage-v1/notes/T008-domain-phrase.md
+      commands:
+        - cmd: "shasum -a 256 owner dirt (START/FINISH, sorted whole lines)"
+          status: pass
+          note: "f326d314 / aeb7edc1 / f936e169, 116 website files, identical both ends"
+        - cmd: "grep defineProps forms over vue/generated"
+          status: pass
+          note: "array: S2-S7,S9 + M1-panel; object: S1,S8,S10-S13,S15-S17 - BOTH branches LIVE. MEASURED, NOT INHERITED"
+        - cmd: "node golden walk (own script)"
+          status: pass
+          note: "16 built scenarios, 28 entries (13 typed / 15 untyped), 7 distinct names - the message's derived figures re-derived independently"
+        - cmd: "pnpm check (before edit / after edits)"
+          status: pass
+          note: "261 -> 261. DELTA 0"
+        - cmd: "pnpm vitest run --config vitest.node.config.ts test/gate.test.ts (vue, alone)"
+          status: pass
+          note: "47/47 with edits in place; every derived-asserted and literal-pinned fragment survived VERBATIM"
+        - cmd: "pnpm test"
+          status: pass
+          note: "1 failed / 1506 passed - sole failure foreign ARM B; passed count UNCHANGED"
+        - cmd: "pnpm e2e (run alone)"
+          status: pass
+          note: "6 demos x 9 scenarios, all observations equal"
+        - cmd: "pnpm lint"
+          status: pass
+          note: "0 warnings, 0 errors, 558 files"
+        - cmd: "pnpm check:citations"
+          status: pass
+          note: "clean at 4 / 17 / 709 - THE SWEEP DID NOT SHRINK"
+        - cmd: "git diff --exit-code over 14 derived trees, SHELL ARRAY, NO WILDCARD, each asserted exist+non-empty"
+          status: pass
+          note: "clean; git status --short shows only allowed_files plus the owner's dirt. PM CONFIRMED"
+      summary: "Corrected the array-only 12b domain phrase in both named sites to a dated measured record (2026-08-01 at 861aff9) naming both live propsDeclaration forms: array defineProps([...]) for seven fully-untyped scenarios, object defineProps({...}) for nine fully-typed ones. Every test-asserted fragment survived verbatim (derived TWENTY-EIGHT / seven / sixteen-scenario figures re-derived independently; literal pins enumerated in the note). Sweep count: TWO live family sites, both corrected; near-misses classified as T007 dated records or verified-true. All gates green, owner dirt untouched."
+      deviations:
+        - "THE CARD'S OWN FIGURE WAS WRONG AND THE WORKER CORRECTED IT BY MEASUREMENT: the card said 15 typed entries print into the object form; 13 print - S14's 2 are refused with the VUE_UNBUILT scenario. The PM had inherited 15 from T007's corpus-wide count without subtracting the refused lane. Corrections use the measured figures."
+        - "The gate.test.ts doc comment edit also corrects its 'prints as a string literal' clause - same comment the card named, false for the object form, same family."
+      remaining_blockers: []
+      verification_attempts: 1
+      stopped_because: null

@@ -289,8 +289,15 @@ function deriveTwoWayHostDomain(roots: CorpusRoots = SHIPPED_CORPUS): {
 
 /**
  * WORKED EXAMPLE 12b'S DOMAIN: every `PropDestructuringEntry` in
- * `component.props.entries` that `propsDeclaration()` prints as a string literal
- * into `defineProps([...])`. Read off the COMPILER goldens, which is the same
+ * `component.props.entries` that `propsDeclaration()` prints into
+ * `defineProps()` - in EITHER of its two live forms. "Prints as a string
+ * literal into `defineProps([...])`" was written when only the array form
+ * existed; MEASURED 2026-08-01 at 861aff9 over the shipped `generated/` tree,
+ * the array form `defineProps(['name', ...])` covers the seven fully-untyped
+ * scenarios (15 entries) and the object form `defineProps({ name: { type,
+ * required } })` covers the nine fully-typed scenarios this lane builds
+ * (13 entries; the tenth fully-typed golden, S14, is recorded VUE_UNBUILT and
+ * prints nothing). Read off the COMPILER goldens, which is the same
  * cross-check `scenarioCorpus` makes - the IR this repo agreed to compile, not
  * the file the emitter happened to write.
  */
