@@ -7,7 +7,7 @@ goal:
   title: "Frameless guard hardening and drag coverage"
   slug: "frameless-guard-and-coverage-v1"
   kind: specific
-  status: active
+  status: done
   tranche: >-
     Close the citation guard's rename/delete blind spot, extend its sweep to the two lane file
     types it cannot read, measure the drag in a second browser or qualify every claim, and
@@ -44,7 +44,7 @@ goal:
       SHIPPING A GUARD CHANGE THAT LOOKS RIGHT AND HAS NEVER BEEN SHOWN TO FAIL. The previous
       board caught SIX vacuous instruments, two of them the PM's own.
 
-active_task: T999
+active_task: null
 
 # ---------------------------------------------------------------------------
 # KNOWN WORKING-TREE DIRT - NOT OURS. DO NOT "CLEAN UP", DO NOT `git add -A`.
@@ -500,7 +500,7 @@ tasks:
   - id: T999
     type: judge
     assignee: Judge
-    status: active
+    status: done
     reasoning_hint: high
     objective: "FINAL AUDIT. Certify all three oracle parts, or refuse."
     scope:
@@ -514,8 +514,62 @@ tasks:
       - "full_outcome_complete: true | false"
       - "each oracle part, quoted verbatim, certified or refused"
       - "next task if not complete"
-    receipt: null
-
+    receipt:
+      result: done
+      harness: claude-code
+      decision: complete
+      full_outcome_complete: true
+      oracle_parts:
+        - part: 1
+          quoted: "(1) EVERY GUARD CHANGE IS PROVEN RED-CAPABLE AGAINST A REAL FAILURE AND THE PROOF RE-RUNS IN CI - mutate the detector, show the suite go RED, restore BYTE-IDENTICALLY, report the digest both times. `pnpm check:citations` EXITING 0 ON A CLEAN TREE IS NOT EVIDENCE: the previous board proved a NEUTERED detector still prints \"agreed with the prose\" and exits 0."
+          verdict: certified
+          evidence: "Three mutations of the Judge's own, none inherited, all on scripts/check-citations.mjs (start sha256 e79cd670a1b922f3c87833dfb99a9f725c2fde17af909f68928ca865b77af6c4). M1 (T002 lexer, componentComments -> all-blank canvas, mutant 3f66313e): pnpm check:citations EXIT 1 naming 'RULING 13's lexer found comment prose in only 0 of 99 tracked component file(s)'; 17 tests RED. M2 (T005 ruling-12, isFirstPartyAnchored -> false, mutant 6c698a7c): check:citations STILL EXIT 0 printing 'clean' and 'agreed with the prose' - the exact neutered-detector state - while 6 ported ruling-12 tests went RED. M3 (T005 thirdPartyIntegrityProblems -> [], mutant ee0a8b6c): check:citations STILL EXIT 0; 4 ported integrity tests RED. Each restored byte-identically to e79cd670...af6c4; citations.test.ts untouched at 8804e7f5; git diff --exit-code clean on both files; 150/150 citations tests green on the restored tree. The proofs re-run in CI: the RED-going tests live in packages/compiler/test/citations.test.ts under the pnpm test node project. PM INDEPENDENTLY CONFIRMED the restored digest at HEAD after the audit."
+        - part: 2
+          quoted: "(2) THE DRAG CLAIM NAMES ITS BROWSER OR IS MEASURED IN A SECOND ONE - either Firefox is driven and recorded PER LANE, or every drag claim in the repo is QUALIFIED AS CHROMIUM. \"It works in Chromium\" MAY NOT BE WRITTEN AS \"it works\"."
+          verdict: certified
+          evidence: "THE FIRST ARM WAS TAKEN AND IT SATISFIES PART 2, EXPLICITLY, EVEN WITH 74 UNNAMED SITES REMAINING: the oracle is a disjunction, and qualification-of-every-claim is the ALTERNATIVE to driving Firefox, not a conjunct. Firefox 146.0.1 WAS driven (harness proven positive on Chromium first), and the result IS recorded per lane and per engine: notes/T003-firefox-drag.md section 2 carries the full 6-lane x 2-engine table (five lanes move-and-stay at +1.42s, react inert with the same 3 warnings, draggable=9 everywhere, sidebar refused 12/12), and the shipped record names both engines - 'firefox'/'chromium' verified present in demos/shared/board-css/board.css, demos/shared/board-css/README.md (Firefox 146.0.1 at :57) and docs/DEFECTS.md, and all seven board.css copies share one digest efb4c588 at HEAD. Materially, the remaining unnamed sites are no longer 'works in Chromium written as works': the claim is now measured true in two engines, and the 74 sites are enumerated by file and block line range for future cards. The Judge summed the table itself: exactly 74 across 47 files."
+        - part: 3
+          quoted: "(3) NOTHING REGRESSES: pnpm test at EXACTLY ONE failure; pnpm e2e stays 6 x 9 RUN ALONE; lint and check:citations clean. pnpm check BASELINE 261, may rise only on a card stating the amount IN ADVANCE."
+          verdict: certified
+          evidence: "All re-run by the Judge at HEAD 71ab363: pnpm test 1 failed / 1506 passed - exactly one, the foreign ARM B in packages/compiler/test/package-inventory.test.ts; pnpm e2e run alone after lsof confirmed ports 5173-5178 empty - 'PASS ... Three-way: 6 demos x 9 scenarios, all observations equal'; pnpm lint 0 warnings 0 errors over 558 files; pnpm check:citations exit 0, clean over 4 / 17 / 709 (the sweep did not shrink); pnpm check = 261 error lines exactly. Every card T001-T008 predicted delta 0 and the end value is the baseline 261 - zero rise, nothing to attribute."
+      brief_error_found: "Scope item 5's own justification is the error: 'TWELVE CARDS ON THE PREDECESSOR BOARD FOUND ONE IN THE PM'S [brief].' The board's recorded fact (state.yaml rules and T004's verify) is 'Twelve cards on the predecessor board EXCEEDED THEIR BRIEF'S COUNT' - an under-enumeration statistic about site counts, not twelve discoveries of errors in PM briefs. The paraphrase mutates what the twelve cards did; on THIS board the cards that actually falsified a PM claim number three (T001's vacuous plant, T003's raw-mouse premise, T008's 15-vs-13 figure). Every other checkable claim in the brief verified true by the Judge's own measurement: HEAD 71ab363, receipt statuses, the guard-change enumeration, Firefox 146.0.1, the 74-site count (summed to exactly 74 over 47 files), fingerprints f326d314 / aeb7edc1 / f936e169 over 116 website files, and the predecessor final audit's own mutation control."
+      commands:
+        - cmd: "shasum -a 256 owner dirt START and FINISH (whole lines sorted; website 116 files)"
+          status: pass
+          note: "f326d314 / aeb7edc1 / f936e169 both ends; git status shows only the owner's three paths. PM CONFIRMED after the audit"
+        - cmd: "MUTATION M1: componentComments -> blank canvas (3f66313e)"
+          status: pass
+          note: "check:citations EXIT 1 naming '0 of 99 tracked component file(s)'; 17 tests RED; restored e79cd670"
+        - cmd: "MUTATION M2: isFirstPartyAnchored -> false (6c698a7c)"
+          status: pass
+          note: "check:citations STILL EXIT 0 'clean'; 6 ported ruling-12 tests RED; restored e79cd670"
+        - cmd: "MUTATION M3: thirdPartyIntegrityProblems -> [] (ee0a8b6c)"
+          status: pass
+          note: "check:citations STILL EXIT 0; 4 ported integrity tests RED; restored e79cd670"
+        - cmd: "vitest run --project node packages/compiler/test/citations.test.ts (restored tree)"
+          status: pass
+          note: "150/150; git diff --exit-code clean on both guard files"
+        - cmd: "pnpm lint"
+          status: pass
+          note: "0 warnings, 0 errors, 558 files"
+        - cmd: "pnpm check"
+          status: pass
+          note: "exactly 261 error lines; every card predicted delta 0; 261 = baseline"
+        - cmd: "pnpm test"
+          status: pass
+          note: "1 failed / 1506 passed; sole failure is the foreign ARM B (package-inventory)"
+        - cmd: "lsof ports 5173-5178 then pnpm e2e RUN ALONE"
+          status: pass
+          note: "ports empty first; PASS - Three-way: 6 demos x 9 scenarios, all observations equal"
+        - cmd: "pnpm check:citations (final, restored tree)"
+          status: pass
+          note: "exit 0, clean over 4 / 17 / 709"
+        - cmd: "shasum over 7 board.css and 7 codex.css copies; grep engines in the three qualified files; grep 'scenarios are queued'"
+          status: pass
+          note: "board.css one digest efb4c588; codex.css one digest ad32be6e; chromium+firefox named in board.css/README/DEFECTS; queued-family at ZERO live sites"
+      rationale: "All three oracle parts certified on the Judge's own evidence, none inherited. Part 1: both guard changes mutated by the Judge itself - one mutation turns the guard itself red (anti-vacuity names it), two leave check:citations green while the ported suite goes red, which is precisely why the suite is the load-bearing instrument; restores byte-identical, digests reported both times. Part 2: the disjunction's first arm was taken - Firefox driven, per-lane per-engine record shipped and verified at HEAD - so part 2 is satisfied despite 74 recorded unnamed sites. Part 3: all five gates re-run at HEAD, all at their exact contract values, check budget 261 to 261 with zero rise. The intake's four outcomes each map to receipts plus current verification. Zero net writes; owner dirt fingerprint-identical. The goal completes."
+      next_task: null
+      verification_attempts: 1
   - id: T005
     type: worker
     assignee: Worker
