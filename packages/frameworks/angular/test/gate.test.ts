@@ -47,8 +47,12 @@ async function golden(name: string): Promise<EnrichedIR> {
  * inventory is the FIRST statement of the gate test below, so the whole run
  * aborted there and the emitted S4 file never reached `checkGeneratedFiles()`,
  * `@angular-eslint`, or any policy. A literal that must be edited once per
- * scenario is the same defect one scenario later, and four more scenarios are
- * queued.
+ * scenario is the same defect one scenario later - and the corpus proved it by
+ * growing. MEASURED 2026-08-01 off the goldens themselves: seventeen
+ * `s<n>-*.json` scenario goldens (s1-s17) exist, all seventeen are emitted
+ * (`ANGULAR_UNBUILT_SCENARIOS` is EMPTY and asserted empty), and NONE is
+ * queued - no s18 golden, no s18 fixture, and no roadmap row anywhere in the
+ * repo queues one.
  *
  * The derivation source is the compiler's ratified golden corpus - `s<n>-*.json`
  * - which is INDEPENDENT of `generated/`: one is the IR this repo agreed to

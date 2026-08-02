@@ -58,19 +58,22 @@
  * container half only.
  *
  * MEASURED HERE at 1440x1000 across the five lanes THAT SERVED THIS PAGE AT THE
- * TIME, BEFORE this block existed. THE FIVE IS THE POPULATION THAT WAS ACTUALLY
- * MEASURED AND IS LEFT STANDING DELIBERATELY - it is a historical reading, not a
- * current lane count. SIX LANES SERVE /codex TODAY: angular refused S12 at emit
- * on its global-identifier ban until `frameless-app-fidelity-v1` T007 landed a
- * two-name allowlist, and T014 measured that lane answering /codex off a booted
- * `ng serve`. ANGULAR WAS NOT IN THE SWEEP BELOW, so the 43/13/4 divergence
- * counts describe five lanes and have never been re-run over six.
- * `/codex` WAS THE ONLY PAGE IN THE WHOLE SHIPPED SET STILL
- * DIVERGING: 43 elements differed in computed style, 13 text runs in width and
- * 4 boxes in rect between react/solid/vue and qwik/svelte. Three distinct
- * mechanisms, and the middle one is the expensive one:
+ * TIME, BEFORE this block existed. SIX LANES SERVE /codex TODAY: angular
+ * refused S12 at emit on its global-identifier ban until
+ * `frameless-app-fidelity-v1` T007 landed a two-name allowlist, and T014
+ * measured that lane answering /codex off a booted `ng serve`. ANGULAR WAS NOT
+ * IN THAT SWEEP, and its per-page divergence counts were never re-run over six
+ * lanes - NOR CAN THEY BE: they counted the PRE-REPAIR page, and the repairs
+ * this block carries have shipped, so a six-lane drive today measures the
+ * repaired page, not that population. The counts are therefore REMOVED rather
+ * than restated (frameless-guard-and-coverage-v1 T004, OD3 half one). What the
+ * five-lane sweep established, and what named the repairs below: `/codex` WAS
+ * THE ONLY PAGE IN THE WHOLE SHIPPED SET STILL DIVERGING - elements differed
+ * in computed style, text runs in width and boxes in rect between
+ * react/solid/vue and qwik/svelte. Three distinct mechanisms, and the middle
+ * one is the expensive one:
  *
- *   letter-spacing  0.18px vs normal on 33 elements. The `body` rule below
+ *   letter-spacing  0.18px vs normal, page-wide. The `body` rule below
  *                   sets font-family, font-size and line-height but NOT
  *                   letter-spacing, so `:root`'s value inherited straight
  *                   through it. "messages in this thread" measured 151.58px
@@ -228,7 +231,7 @@ body:has(.codex) {
 /*
  * `position: fixed; inset: 0` IS LOAD-BEARING AND WAS MEASURED, NOT CHOSEN.
  *
- * Five of the six demos are official framework scaffolds and several ship their own
+ * The six demos are official framework scaffolds and several ship their own
  * container styling. MEASURED in this lane before this rule existed: the rail
  * rendered 256px wide as intended and started at x=78, because the React scaffold's
  * `src/index.css` centres `#root` inside a `max-width` with `padding: 2rem`. The app
@@ -236,9 +239,9 @@ body:has(.codex) {
  * have seen it - `.rail` reported exactly 256x900 the whole time.
  *
  * Taking the app out of flow pins it to the VIEWPORT instead of to whatever ancestor
- * each scaffold happens to provide, so the five shipped lanes are comparable to each
+ * each scaffold happens to provide, so the shipped lanes are comparable to each
  * other and to the reference at a stated viewport size. It is one lane-neutral rule
- * rather than five per-scaffold overrides, and it touches no scaffold file.
+ * rather than a per-scaffold override in every lane, and it touches no scaffold file.
  *
  * `text-align: left` IS THE SECOND HALF OF THE SAME REPAIR AND IT COST A SEPARATE
  * MEASUREMENT. Taking the app out of flow fixes its POSITION and inherits nothing

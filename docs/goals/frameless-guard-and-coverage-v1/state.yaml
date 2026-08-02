@@ -44,7 +44,7 @@ goal:
       SHIPPING A GUARD CHANGE THAT LOOKS RIGHT AND HAS NEVER BEEN SHOWN TO FAIL. The previous
       board caught SIX vacuous instruments, two of them the PM's own.
 
-active_task: T004
+active_task: T006
 
 # ---------------------------------------------------------------------------
 # KNOWN WORKING-TREE DIRT - NOT OURS. DO NOT "CLEAN UP", DO NOT `git add -A`.
@@ -406,7 +406,7 @@ tasks:
   - id: T004
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: medium
     objective: >-
       CORRECT THE LAST TWO STALE RECORDS the predecessor board ruled but deliberately did not fix.
@@ -447,8 +447,56 @@ tasks:
       - "The owner's three dirty paths are touched. DO NOT `git add -A`."
       - "NEVER pkill -f."
       - "Verification fails twice for the same reason."
-    receipt: null
-
+    receipt:
+      result: done
+      harness: claude-code
+      note: notes/T004-last-records.md
+      changed_files:
+        - packages/frameworks/angular/test/gate.test.ts
+        - demos/shared/shadcn-theme/codex.css
+        - demos/react-official/public/shadcn-theme/codex.css
+        - demos/solid-official/public/shadcn-theme/codex.css
+        - demos/qwik/public/shadcn-theme/codex.css
+        - demos/svelte-official/static/shadcn-theme/codex.css
+        - demos/vue-official/public/shadcn-theme/codex.css
+        - demos/angular-official/public/shadcn-theme/codex.css
+        - docs/goals/frameless-guard-and-coverage-v1/notes/T004-last-records.md
+      pm_correction: "THE WORKER'S changed_files OMITTED demos/angular-official/public/shadcn-theme/codex.css. PM VERIFIED WITH git status: the file IS modified, IS inside allowed_files, and shares the single digest ad32be6e with the other six. Added here so the board's write record matches git. Everything else verified: write set is EXACTLY allowed_files plus the owner's three dirty paths, untouched."
+      commands:
+        - cmd: "shasum -a 256 owner dirty paths (START and FINISH, lines sorted)"
+          status: pass
+          note: "f326d314 / aeb7edc1 / f936e169, 116 website files, identical both ends"
+        - cmd: "pnpm check (START at HEAD, before any edit)"
+          status: pass
+          note: "261 errors"
+        - cmd: "pnpm check (final bytes)"
+          status: pass
+          note: "261 - DELTA 0"
+        - cmd: "pnpm test"
+          status: pass
+          note: "exactly 1 failed / 1506 passed; the failure is the foreign ARM B (package-inventory peer-suffix)"
+        - cmd: "pnpm e2e (run alone, no frameless servers up)"
+          status: pass
+          note: "exit 0; 'Three-way: 6 demos x 9 scenarios, all observations equal'"
+        - cmd: "pnpm lint"
+          status: pass
+          note: "0/0 over 558 files"
+        - cmd: "pnpm check:citations (final bytes)"
+          status: pass
+          note: "clean; 4 documents / 17 watched source / 709 swept - THE SWEEP DID NOT SHRINK"
+        - cmd: "node ../shared/copy-shadcn-theme.mjs per lane; shasum -a 256 over all 7 codex.css"
+          status: pass
+          note: "ONE digest: ad32be6eb882c4aa5d78725bfbf8df0183f43de837503c0d01bcd06a4d60cb46. PM INDEPENDENTLY CONFIRMED all seven"
+        - cmd: "derived-tree proof: shell array of 25 explicit paths, exist+non-empty asserted, git diff --exit-code per path, NO WILDCARD, paired with git status --short"
+          status: pass
+          note: "25/25 clean; six lane shadcn-theme trees diff on exactly codex.css each (mandated by verify 3)"
+      summary: "Both stale records corrected. gate.test.ts:50: measured off the goldens themselves - seventeen s1-s17, all emitted, ANGULAR_UNBUILT_SCENARIOS empty and asserted empty, none queued, no s18 anywhere - clause rewritten as a DATED MEASURED record, comment only, no assertion touched. codex.css:60: counts REMOVED per OD3 half one because they measured the PRE-REPAIR page and are UN-RE-RUNNABLE - the repairs the block carries have shipped, so a six-lane drive today can only measure the repaired page. Fact restated without the numbers. Sweep found 5 count-sites (card named 2): also '33 elements' (same un-re-runnable population), 'Five of the six demos are official scaffolds' (false at HEAD - six of six, measured), 'five shipped lanes / five per-scaffold overrides'. Four historicals evaluated and left standing."
+      deviations:
+        - "Corrected three count-sites beyond the card's two, all inside allowed_files, per the board rule that two sites is a starting point: 'on 33 elements' (same un-re-runnable population as 43/13/4), 'Five of the six demos are official framework scaffolds' (false at HEAD, measured six of six), and 'five shipped lanes / five per-scaffold overrides' (five-lane era)."
+      remaining_blockers:
+        - "OUTSIDE allowed_files, RECORDED NOT REACHED, for the PM: the same 'scenarios are queued' wording lives in react/solid/qwik/vue/svelte gate.test.ts and all six lanes' emitter.test.ts; not adjudicated here."
+      verification_attempts: 1
+      stopped_because: null
   - id: T999
     type: judge
     assignee: Judge
@@ -593,3 +641,51 @@ tasks:
         - "NOT A BLOCKER, DISCLOSED: a node_modules path that also matches a suffix now gets the generic 'outside this repository' reason rather than the entry's specific one. Verdict and kind unchanged for all 4 live sites."
         - "UNTOUCHED AND STILL THE OWNER'S: the 374 ordinal-less path mentions. They NEVER REACH classify - findCitations emits them only as antecedents - so nothing here reclassified them."
       stopped_because: null
+
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: medium
+    objective: >-
+      CORRECT THE 11 REMAINING SITES OF THE SAME STALE FAMILY T004 CLOSED IN ANGULAR. T004's sweep
+      found that "four/more scenarios are queued" - the exact clause the charter ruled a LIVE stale
+      claim at angular gate.test.ts:50 - also lives in FIVE more gate tests and SIX emitter tests,
+      all outside T004's allowed_files. The PM verified all 11 by grep and read two in context:
+      IDENTICAL paragraph shape, NO date, so no exemption applies - the same live stale claim,
+      eleven more times. 17 scenarios exist; NONE is queued.
+    THE_ELEVEN_SITES: >-
+      gate.test.ts in solid(:32) react(:33) qwik(:40) svelte(:43) vue(:47); emitter.test.ts in
+      react(:53) solid(:48) qwik(:27) svelte(:53) vue(:50) angular(:56). Line ordinals taken by PM
+      grep at HEAD 46f673f - RE-FIND THEM YOURSELF, do not trust ordinals.
+    allowed_files:
+      - "packages/frameworks/react/test/gate.test.ts"
+      - "packages/frameworks/solid/test/gate.test.ts"
+      - "packages/frameworks/qwik/test/gate.test.ts"
+      - "packages/frameworks/svelte/test/gate.test.ts"
+      - "packages/frameworks/vue/test/gate.test.ts"
+      - "packages/frameworks/react/test/emitter.test.ts"
+      - "packages/frameworks/solid/test/emitter.test.ts"
+      - "packages/frameworks/qwik/test/emitter.test.ts"
+      - "packages/frameworks/svelte/test/emitter.test.ts"
+      - "packages/frameworks/vue/test/emitter.test.ts"
+      - "packages/frameworks/angular/test/emitter.test.ts"
+      - "docs/goals/frameless-guard-and-coverage-v1/notes/T006-queued-claims.md"
+    verify:
+      - "MEASURE THE SCENARIO COUNT YOURSELF from the compiler golden corpus - do NOT copy 17 from this card or from T004 - and confirm none is queued (no s18 golden, fixture, or roadmap row). ONE measurement may serve all 11 sites ONLY IF you first verify every lane derives from the SAME corpus; otherwise measure per lane."
+      - "CORRECT THE CLAUSE AT EACH OF THE 11 SITES following T004's angular shape: a DATED MEASURED record. COMMENT ONLY - A COMMENT IN A TEST FILE IS THE RECORD; THE ASSERTIONS ARE NOT YOURS. Keep each file's surrounding prose intact; do not homogenize paragraphs that differ for lane-specific reasons."
+      - "SWEEP ALL 11 FILES MULTI-LINE for any OTHER claim of the same families (stale counts, five-lane-era phrasing) and REPORT YOUR OWN COUNT. Eleven sites is a starting point, not a population."
+      - "THIS CARD DERIVES NOTHING. git diff --exit-code over every derived tree, each asserted to EXIST and be NON-EMPTY first, NO WILDCARD PATHSPEC, SHELL ARRAY, paired with git status --short."
+      - "pnpm check BASELINE 261 PREDICTED DELTA 0 / pnpm test EXACTLY 1 failure, passed count UNCHANGED (this card adds no tests) / pnpm e2e 6 x 9 RUN ALONE / pnpm lint / pnpm check:citations AFTER EVERY EDIT - these are watched-source-adjacent files and the sweep must stay 4 / 17 / 709."
+      - "fingerprint the owner's three dirty paths at START and FINISH: f326d314 / aeb7edc1 / f936e169, 116 files."
+    stop_if:
+      - "Need files outside allowed_files."
+      - "You are about to change a TEST ASSERTION. Only comments are yours."
+      - "You are about to 'correct' a QUOTED HISTORICAL or a DATED past-tense record. Only undated live claims are in scope."
+      - "You are about to edit a .tsrx fixture. NONE IS IN SCOPE."
+      - "pnpm check rises at all. BASELINE 261."
+      - "pnpm test failures exceed exactly 1, passed count moves, or pnpm e2e leaves 6 x 9."
+      - "The owner's three dirty paths are touched. DO NOT `git add -A`."
+      - "NEVER pkill -f."
+      - "Verification fails twice for the same reason."
+    receipt: null
