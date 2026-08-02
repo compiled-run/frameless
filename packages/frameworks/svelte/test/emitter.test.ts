@@ -49,9 +49,13 @@ function byScenarioNumber(left: string, right: string): number {
  * standing test asserted its emitted bytes equal `formatEmitted(emit(golden))`.
  * That freshness was proved ONCE, by regenerating and diffing by hand; nothing
  * re-proved it per run, so the emitted S4 could have drifted from the emitter
- * that claims to produce it and every lane would still have been green. Four
- * more scenarios are queued, and a table hand-edited per scenario is that same
- * hole four more times.
+ * that claims to produce it and every lane would still have been green. A table
+ * hand-edited per scenario is that same hole once per scenario after it - and
+ * the corpus proved it by growing. MEASURED 2026-08-01 off the goldens
+ * themselves: seventeen `s<n>-*.json` scenario goldens (s1-s17) exist, sixteen
+ * are in this table (`SVELTE_UNBUILT_SCENARIOS` subtracts only S14, refused
+ * with a recorded refusal), and NONE is queued - no s18 golden, no s18 fixture,
+ * and no roadmap row anywhere in the repo queues one.
  *
  * The derivation source is the compiler's ratified golden corpus - `s<n>-*.json`
  * - which is INDEPENDENT of `generated/`: one is the IR this repo agreed to
@@ -406,10 +410,12 @@ describe('Svelte 5 emitter', () => {
 		 * `type` that is not an AST node is named as loudly as an unknown key, which
 		 * is what stops admitting the field from trading one blind spot for another.
 		 *
-		 * The positive arm is not decoration. `s1-render-once` is the ONLY annotated
-		 * fixture in the corpus - four typed entries against fifteen untyped ones
-		 * across the other seven goldens - so without it the allowlist entry would
-		 * be indistinguishable from a dead one that nothing ever exercises.
+		 * The positive arm is not decoration. It landed when `s1-render-once` was
+		 * the ONLY annotated fixture in the corpus. MEASURED 2026-08-01 off the
+		 * goldens themselves: TEN of the seventeen scenario goldens now carry typed
+		 * entries (s1, s8, s10-s17 - fifteen typed against fifteen untyped), and
+		 * s1's four are the ones this row drives, so without it the allowlist entry
+		 * would be indistinguishable from a dead one that nothing ever exercises.
 		 */
 		test('on a malformed IR-8 type annotation, while a well-formed one is admitted', async () => {
 			const admitted = structuredClone(await golden('s1-render-once.json'));

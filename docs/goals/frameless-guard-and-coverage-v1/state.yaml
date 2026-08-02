@@ -44,7 +44,7 @@ goal:
       SHIPPING A GUARD CHANGE THAT LOOKS RIGHT AND HAS NEVER BEEN SHOWN TO FAIL. The previous
       board caught SIX vacuous instruments, two of them the PM's own.
 
-active_task: T006
+active_task: T007
 
 # ---------------------------------------------------------------------------
 # KNOWN WORKING-TREE DIRT - NOT OURS. DO NOT "CLEAN UP", DO NOT `git add -A`.
@@ -645,7 +645,7 @@ tasks:
   - id: T006
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: medium
     objective: >-
       CORRECT THE 11 REMAINING SITES OF THE SAME STALE FAMILY T004 CLOSED IN ANGULAR. T004's sweep
@@ -682,6 +682,102 @@ tasks:
       - "Need files outside allowed_files."
       - "You are about to change a TEST ASSERTION. Only comments are yours."
       - "You are about to 'correct' a QUOTED HISTORICAL or a DATED past-tense record. Only undated live claims are in scope."
+      - "You are about to edit a .tsrx fixture. NONE IS IN SCOPE."
+      - "pnpm check rises at all. BASELINE 261."
+      - "pnpm test failures exceed exactly 1, passed count moves, or pnpm e2e leaves 6 x 9."
+      - "The owner's three dirty paths are touched. DO NOT `git add -A`."
+      - "NEVER pkill -f."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      harness: claude-code
+      note: notes/T006-queued-claims.md
+      changed_files:
+        - packages/frameworks/react/test/gate.test.ts
+        - packages/frameworks/solid/test/gate.test.ts
+        - packages/frameworks/qwik/test/gate.test.ts
+        - packages/frameworks/svelte/test/gate.test.ts
+        - packages/frameworks/vue/test/gate.test.ts
+        - packages/frameworks/react/test/emitter.test.ts
+        - packages/frameworks/solid/test/emitter.test.ts
+        - packages/frameworks/qwik/test/emitter.test.ts
+        - packages/frameworks/svelte/test/emitter.test.ts
+        - packages/frameworks/vue/test/emitter.test.ts
+        - packages/frameworks/angular/test/emitter.test.ts
+        - docs/goals/frameless-guard-and-coverage-v1/notes/T006-queued-claims.md
+      commands:
+        - cmd: "ls goldens | grep -cE scenario json (+ fixture ls, s18 find, roadmap grep)"
+          status: pass
+          note: "17 goldens s1-s17; no s18 golden/fixture/roadmap row; NONE queued. MEASURED, NOT COPIED"
+        - cmd: "grep 'compiler/test/goldens' over all 11 files"
+          status: pass
+          note: "same corpus in every lane; one measurement serves all 11. Emitted side measured PER LANE: react/solid/qwik/angular 17/17; svelte/vue 16/17, S14 refused on record"
+        - cmd: "pnpm check (START pre-edit / FINISH)"
+          status: pass
+          note: "261 -> 261. DELTA 0"
+        - cmd: "pnpm test (HEAD baseline via copy-aside-by-name / with edits)"
+          status: pass
+          note: "both runs 1 failed (foreign ARM B) / 1506 passed; passed count UNCHANGED - this card added no tests"
+        - cmd: "pnpm e2e (run alone)"
+          status: pass
+          note: "6 demos x 9 scenarios, all observations equal"
+        - cmd: "pnpm lint"
+          status: pass
+          note: "0 warnings, 0 errors on 558 files"
+        - cmd: "pnpm check:citations (after 11 edits, after 5 sweep edits, FINISH)"
+          status: pass
+          note: "clean at 4 / 17 / 709 every run; THE SWEEP DID NOT SHRINK"
+        - cmd: "git diff --exit-code over 12 derived trees, SHELL ARRAY, existence+non-empty asserted, NO WILDCARD"
+          status: pass
+          note: "exit 0; git status --short empty for trees. PM CONFIRMED the working-tree write set is EXACTLY allowed_files plus the owner's dirt"
+        - cmd: "shasum -a 256 owner dirt START/FINISH (sorted whole lines)"
+          status: pass
+          note: "f326d314 / aeb7edc1 / f936e169 over 116 files, IDENTICAL"
+      summary: "Corrected all 11 assigned 'four more scenarios are queued' sites to dated MEASURED 2026-08-01 records in T004's angular shape, lane-accurate (17/17 emitted in react/solid/qwik/angular; 16/17 in svelte/vue, S14 refused on record). Sweep found 5 MORE live same-family sites inside allowed_files (the 'ONLY annotated fixture / other seven goldens' paragraph x4 and vue's 'other seven scenarios carry no annotation') - measured (10 of 17 goldens typed, 15 typed vs 15 untyped) and corrected: 16 sites total. 3 live same-family sites recorded outside allowed_files in vue src, not reached. All gates green; comment-only diff; owner dirt untouched."
+      deviations:
+        - "Corrected 5 additional live same-family sites beyond the 11 assigned, all inside allowed_files, per verify item 3's 'eleven sites is a starting point, not a population'"
+      remaining_blockers:
+        - "Same-family live stale counts OUTSIDE allowed_files, RECORDED NOT REACHED, now routed to T007: packages/frameworks/vue/src/emitter/index.ts:1204 ('not a live split' claimed now false - RE-MEASURE, do not inherit), packages/frameworks/vue/src/gate/index.ts:1302 comment, and :1332's SHIPPED violation message carrying 'RenderOnce 4 of 4; the other seven goldens 0 of 15'. PM VERIFIED no test asserts that stale fragment - the message's asserted substrings are elsewhere in the string"
+      verification_attempts: 1
+      stopped_because: null
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: medium
+    objective: >-
+      CORRECT THE THREE LAST SAME-FAMILY SITES T006 RECORDED IN VUE SRC - the only remaining live
+      stale counts of the 'queued/eight-scenario-era' family found by any sweep on this board.
+      Two are comments; ONE IS A COUNTED LITERAL INSIDE A SHIPPED VIOLATION MESSAGE.
+    THE_THREE_SITES: >-
+      (1) packages/frameworks/vue/src/emitter/index.ts:1204 - 'annotation is per-component
+      all-or-nothing across the corpus (RenderOnce 4/4, the other seven scenarios 0/15), so this
+      branch is a guard against a corpus that changes, not a live split'. T006 measured 10 of 17
+      goldens now carry typed entries and CLAIMS the branch is now live - RE-MEASURE, DO NOT
+      INHERIT. (2) packages/frameworks/vue/src/gate/index.ts:1302 comment - 'RenderOnce 4 of 4
+      typed, the other seven goldens 0 of 15'. (3) gate/index.ts:1332 - the SHIPPED no-typed-props
+      violation message carries '(RenderOnce 4 of 4; the other seven goldens 0 of 15)'. THE PM
+      VERIFIED no test asserts that stale fragment: gate.test.ts pins OTHER substrings of the same
+      message ('defineProps() in its type-argument form', 'type: Boolean, required: true',
+      'undefined to false', 'Missing required prop') - THOSE MUST SURVIVE YOUR EDIT VERBATIM.
+      Line ordinals taken at HEAD after T006 - re-find them yourself.
+    allowed_files:
+      - "packages/frameworks/vue/src/emitter/index.ts"
+      - "packages/frameworks/vue/src/gate/index.ts"
+      - "docs/goals/frameless-guard-and-coverage-v1/notes/T007-vue-src-counts.md"
+    verify:
+      - "MEASURE THE ANNOTATION SPLIT YOURSELF over the CURRENT corpus: per golden, per component, which prop entries carry `type`? Report the per-component all-or-nothing property TRUE or FALSE at HEAD, and whether emitter/index.ts's `!typed` branch is live or a guard. Then correct site (1) to a DATED MEASURED record saying exactly what you measured - do NOT inherit T006's '10 of 17' or 'the branch is live'."
+      - "CORRECT sites (2) and (3) with the same measurement. Site (3) is a RUNTIME STRING: change ONLY the stale counted fragment, keep every test-asserted substring VERBATIM, and re-run the vue gate tests to prove it."
+      - "COMMENTS AND THE ONE NAMED MESSAGE FRAGMENT ONLY. NO logic, NO control flow, NO emitted bytes may change: the derived-tree proof and pnpm test passed-count are the instruments."
+      - "SWEEP BOTH FILES MULTI-LINE for any other live claim of the same families and REPORT YOUR OWN COUNT. Three sites is a starting point, not a population. Outside allowed_files: RECORD, DO NOT REACH."
+      - "THIS CARD DERIVES NOTHING. git diff --exit-code over every derived tree, each asserted to EXIST and be NON-EMPTY first, NO WILDCARD PATHSPEC, SHELL ARRAY, paired with git status --short."
+      - "pnpm check BASELINE 261 PREDICTED DELTA 0 / pnpm test EXACTLY 1 failure, passed count UNCHANGED / pnpm e2e 6 x 9 RUN ALONE / pnpm lint / pnpm check:citations after every edit, sweep stays 4 / 17 / 709."
+      - "fingerprint the owner's three dirty paths at START and FINISH: f326d314 / aeb7edc1 / f936e169, 116 files."
+    stop_if:
+      - "Need files outside allowed_files."
+      - "You are about to change LOGIC, CONTROL FLOW, or any EMITTED byte. Comments and the one named message fragment only."
+      - "A vue gate or emitter test goes red because of your message edit - the asserted substrings were not preserved."
+      - "You are about to 'correct' a QUOTED HISTORICAL or a DATED past-tense record."
       - "You are about to edit a .tsrx fixture. NONE IS IN SCOPE."
       - "pnpm check rises at all. BASELINE 261."
       - "pnpm test failures exceed exactly 1, passed count moves, or pnpm e2e leaves 6 x 9."

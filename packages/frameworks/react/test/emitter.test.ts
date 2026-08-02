@@ -49,9 +49,13 @@ function byScenarioNumber(left: string, right: string): number {
  * standing test asserted its emitted bytes equal `formatEmitted(emit(golden))`.
  * That freshness was proved ONCE, by regenerating and diffing by hand; nothing
  * re-proved it per run, so the emitted S4 could have drifted from the emitter
- * that claims to produce it and every lane would still have been green. Four
- * more scenarios are queued, and a table hand-edited per scenario is that same
- * hole four more times.
+ * that claims to produce it and every lane would still have been green. A table
+ * hand-edited per scenario is that same hole once per scenario after it - and
+ * the corpus proved it by growing. MEASURED 2026-08-01 off the goldens
+ * themselves: seventeen `s<n>-*.json` scenario goldens (s1-s17) exist, all
+ * seventeen are in this table (the derivation subtracts nothing), and NONE is
+ * queued - no s18 golden, no s18 fixture, and no roadmap row anywhere in the
+ * repo queues one.
  *
  * The derivation source is the compiler's ratified golden corpus - `s<n>-*.json`
  * - which is INDEPENDENT of `generated/`: one is the IR this repo agreed to
