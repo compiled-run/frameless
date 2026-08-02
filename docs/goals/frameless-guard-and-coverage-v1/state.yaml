@@ -44,7 +44,7 @@ goal:
       SHIPPING A GUARD CHANGE THAT LOOKS RIGHT AND HAS NEVER BEEN SHOWN TO FAIL. The previous
       board caught SIX vacuous instruments, two of them the PM's own.
 
-active_task: T007
+active_task: T008
 
 # ---------------------------------------------------------------------------
 # KNOWN WORKING-TREE DIRT - NOT OURS. DO NOT "CLEAN UP", DO NOT `git add -A`.
@@ -743,7 +743,7 @@ tasks:
   - id: T007
     type: worker
     assignee: Worker
-    status: active
+    status: done
     reasoning_hint: medium
     objective: >-
       CORRECT THE THREE LAST SAME-FAMILY SITES T006 RECORDED IN VUE SRC - the only remaining live
@@ -777,6 +777,96 @@ tasks:
       - "Need files outside allowed_files."
       - "You are about to change LOGIC, CONTROL FLOW, or any EMITTED byte. Comments and the one named message fragment only."
       - "A vue gate or emitter test goes red because of your message edit - the asserted substrings were not preserved."
+      - "You are about to 'correct' a QUOTED HISTORICAL or a DATED past-tense record."
+      - "You are about to edit a .tsrx fixture. NONE IS IN SCOPE."
+      - "pnpm check rises at all. BASELINE 261."
+      - "pnpm test failures exceed exactly 1, passed count moves, or pnpm e2e leaves 6 x 9."
+      - "The owner's three dirty paths are touched. DO NOT `git add -A`."
+      - "NEVER pkill -f."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      harness: claude-code
+      note: notes/T007-vue-src-counts.md
+      changed_files:
+        - packages/frameworks/vue/src/emitter/index.ts
+        - packages/frameworks/vue/src/gate/index.ts
+        - docs/goals/frameless-guard-and-coverage-v1/notes/T007-vue-src-counts.md
+      commands:
+        - cmd: "shasum -a 256 owner dirty paths (START/FINISH, sorted whole lines)"
+          status: pass
+          note: "f326d314 / aeb7edc1 / f936e169, 116 website files, identical both ends"
+        - cmd: "node golden walk over packages/compiler/test/goldens (17 files)"
+          status: pass
+          note: "30 entries, 15 typed, ZERO mixed: all-or-nothing TRUE; 10 goldens fully typed, 7 at 0/15. MEASURED, NOT INHERITED - confirms T006 by independent derivation"
+        - cmd: "grep defineProps forms over packages/frameworks/vue/generated*"
+          status: pass
+          note: "!typed branch LIVE: array form shipped for S2-S7, S9 + M1-panel; object form for 9 built typed scenarios (S14 unbuilt). BOTH propsDeclaration branches live in shipped output"
+        - cmd: "pnpm check (baseline via files copied aside by name, then after edits)"
+          status: pass
+          note: "261 -> 261. DELTA 0"
+        - cmd: "pnpm vitest run --config vitest.node.config.ts test/gate.test.ts (vue)"
+          status: pass
+          note: "47/47; the four test-pinned substrings of the no-typed-props message preserved VERBATIM"
+        - cmd: "pnpm test"
+          status: pass
+          note: "1 failed / 1506 passed; sole failure foreign ARM B; passed count UNCHANGED"
+        - cmd: "git diff --exit-code over 14 derived trees, SHELL ARRAY, NO WILDCARD, existence+non-empty asserted"
+          status: pass
+          note: "all clean; git status --short shows only allowed_files plus the owner's dirt. PM CONFIRMED"
+        - cmd: "pnpm e2e (run alone)"
+          status: pass
+          note: "6 demos x 9 scenarios, all observations equal"
+        - cmd: "pnpm lint"
+          status: pass
+          note: "0 warnings, 0 errors, 558 files"
+        - cmd: "pnpm check:citations"
+          status: pass
+          note: "clean at 4 / 17 / 709 - THE SWEEP DID NOT SHRINK"
+      summary: "Re-measured the annotation split at 602e49c: all-or-nothing TRUE (zero mixed), 10 of 17 goldens fully typed (15/30 entries), 7 at 0/15; the !typed branch is LIVE, proven from the shipped generated/ tree - so the old 'not a live split' was false in exactly one direction. Corrected sites (1) emitter:1202 and (2) gate:1301 to dated measured records, and replaced ONLY the counted fragment in gate:1332's runtime message with all four test-pinned substrings intact (47/47). Sweep found a FOURTH live same-family site, gate:1314 'the ONE corpus component' - corrected: RenderOnce holds the corpus's only Boolean prop but is one of TEN admissible components. Recorded, not reached: gate:1274's defineModel message domain phrase."
+      deviations:
+        - "Corrected a fourth same-family site the sweep found (gate/index.ts ~1314 'the ONE corpus component that could take the sugar today') - comment-only, inside allowed_files, per the card's 'three sites is a starting point, not a population'."
+      remaining_blockers:
+        - "RECORDED, NOT REACHED (the card limited runtime-string edits to the ONE named fragment), now routed to T008: gate/index.ts:1274's defineModel message states the 12b domain as 'every PropDestructuringEntry propsDeclaration() prints into defineProps([...])' - written when only the array form existed, now false for the 15 typed entries that print into the OBJECT form. Same phrase in gate.test.ts:293's derivation doc comment. PM VERIFIED the message's COUNTS are NOT rot: expectPrintedPropFigures derives them from the corpus and asserts the shipped string spells the derived value ('sixteen-scenario corpus' = vue's shipped 16 with S14 refused; TWENTY-EIGHT = 30 minus S14's 2), green at HEAD."
+      verification_attempts: 1
+      stopped_because: null
+  - id: T008
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: medium
+    objective: >-
+      CORRECT THE LAST RECORDED SITE OF THE FAMILY: the 12b domain phrase 'every
+      PropDestructuringEntry propsDeclaration() prints into defineProps([...])' - written when
+      only the ARRAY form existed, now false for the 15 typed entries that print into the OBJECT
+      form (T007 proved both propsDeclaration branches LIVE in shipped output). The phrase lives
+      in TWO places: the SHIPPED defineModel violation message in
+      packages/frameworks/vue/src/gate/index.ts (~:1274 region), and the doc comment above
+      derivePrintedPropEntries in packages/frameworks/vue/test/gate.test.ts (~:293).
+    WHAT_IS_NOT_ROT_DO_NOT_TOUCH_IT: >-
+      The message's COUNTS are DERIVED-ASSERTED and green at HEAD: expectPrintedPropFigures
+      derives 'TWENTY-EIGHT printed entries spanning seven distinct prop names' and
+      'sixteen-scenario corpus' from vue's shipped corpus (16 with S14 refused; 30 entries minus
+      S14's 2 = 28) and asserts the shipped string SPELLS THE DERIVED VALUE. Those fragments are
+      the instrument working, not rot - they MUST survive verbatim, and so must every other
+      test-asserted fragment of both no-two-way-binding messages. RE-DERIVE THIS YOURSELF before
+      believing it.
+    allowed_files:
+      - "packages/frameworks/vue/src/gate/index.ts"
+      - "packages/frameworks/vue/test/gate.test.ts"
+      - "docs/goals/frameless-guard-and-coverage-v1/notes/T008-domain-phrase.md"
+    verify:
+      - "MEASURE FIRST: confirm from the shipped generated/ tree that propsDeclaration prints BOTH forms today - array for untyped components, object for fully-typed - and enumerate which fragments of the defineModel message and the derivePrintedPropEntries doc comment gate.test.ts asserts (derived or literal). Report your own list."
+      - "CORRECT THE DOMAIN PHRASE in both places to name both forms, as a DATED MEASURED record. In the runtime message change ONLY that phrase; every test-asserted fragment survives VERBATIM. In gate.test.ts touch ONLY the doc comment - the derivation code and every assertion are NOT YOURS."
+      - "Re-run the vue gate tests alone and prove 47/47 with your edit in place."
+      - "SWEEP BOTH FILES MULTI-LINE for any other live claim of the same family and REPORT YOUR OWN COUNT. If a site is outside allowed_files, RECORD IT, DO NOT REACH."
+      - "THIS CARD DERIVES NOTHING. git diff --exit-code over every derived tree, each asserted to EXIST and be NON-EMPTY first, NO WILDCARD PATHSPEC, SHELL ARRAY, paired with git status --short."
+      - "pnpm check BASELINE 261 PREDICTED DELTA 0 / pnpm test EXACTLY 1 failure, passed count UNCHANGED / pnpm e2e 6 x 9 RUN ALONE / pnpm lint / pnpm check:citations after every edit, sweep stays 4 / 17 / 709."
+      - "fingerprint the owner's three dirty paths at START and FINISH: f326d314 / aeb7edc1 / f936e169, 116 files."
+    stop_if:
+      - "Need files outside allowed_files."
+      - "You are about to change LOGIC, CONTROL FLOW, a DERIVATION, an ASSERTION, or any EMITTED byte."
+      - "A vue gate test goes red because a derived-asserted or pinned fragment did not survive."
       - "You are about to 'correct' a QUOTED HISTORICAL or a DATED past-tense record."
       - "You are about to edit a .tsrx fixture. NONE IS IN SCOPE."
       - "pnpm check rises at all. BASELINE 261."

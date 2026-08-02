@@ -1298,9 +1298,11 @@ function scriptViolations(file: string, parsed: Parsed): GateViolation[] {
 		//   G3 now PASSES - the trigger "the entry declares a type" reads a
 		//   DECLARED IR field, which is exactly what the old message said was
 		//   unavailable. G4 is REPAIRABLE, so it does not decide either: annotation
-		//   is per-component all-or-nothing in the corpus today (RenderOnce 4 of 4
-		//   typed, the other seven goldens 0 of 15), so "components whose every
-		//   entry carries a type" is a stated, emitter-decidable narrowing.
+		//   is per-component all-or-nothing in the corpus today (RE-MEASURED
+		//   2026-08-01 at 602e49c: TEN of the seventeen goldens fully typed - 15 of
+		//   30 entries - the other SEVEN at 0 of 15, ZERO mixed components), so
+		//   "components whose every entry carries a type" is a stated,
+		//   emitter-decidable narrowing.
 		//
 		// G5 DECIDES, AND IT FAILS ON THREE RUNTIME MEASUREMENTS. The array form
 		// compiles to `props: ['label', ...]`; the type-argument form compiles to
@@ -1311,8 +1313,10 @@ function scriptViolations(file: string, parsed: Parsed): GateViolation[] {
 		//   2. `visible=""` -> baseline gives the string `""`, which is FALSY;
 		//      candidate gives `true`, which is TRUTHY. A `v-if` on that prop
 		//      renders the other branch. This is a rendering change, not a typing
-		//      one, and it lands on the ONE corpus component that could take the
-		//      sugar today.
+		//      one, and it lands on shipped corpus: RenderOnce still carries the
+		//      corpus's ONLY Boolean-typed prop (`visible`, RE-MEASURED
+		//      2026-08-01), and it is now one of TEN fully annotated components
+		//      the narrowing would admit, not the only one.
 		//   3. Two diagnostics appear that the baseline never emits - `Missing
 		//      required prop: "visible"` and `Invalid prop: type check failed`.
 		//      `required: true` is synthesized from the TS type being
@@ -1329,7 +1333,7 @@ function scriptViolations(file: string, parsed: Parsed): GateViolation[] {
 				violation(
 					file,
 					'no-typed-props',
-					`Emitted Vue source calls ${name}() in its type-argument form. The IR-8 rationale this message used to carry is WITHDRAWN as measured false: PropDestructuringEntry DOES carry a type field since T003 and s1-render-once's golden holds four, so Gate 3 now PASSES on a declared trigger and Gate 4 is repairable by narrowing to components whose every entry is annotated (RenderOnce 4 of 4; the other seven goldens 0 of 15). GATE 5 DECIDES AND FAILS, measured at vue@3.5.40: the array form compiles to props: ['label', ...] while the type-argument form compiles to props: { visible: { type: Boolean, required: true }, ... }, and those runtime options change what renders - an absent "visible" goes from undefined to false, and visible="" goes from the FALSY string "" to a TRUTHY true, flipping any v-if reading it. Two diagnostics also appear that the baseline never emits, Missing required prop and Invalid prop type check failed, and the required:true they enforce is synthesized from TS non-optionality that NO IR FIELD DECLARES. Re-open on those three deltas, not on IR-8`,
+					`Emitted Vue source calls ${name}() in its type-argument form. The IR-8 rationale this message used to carry is WITHDRAWN as measured false: PropDestructuringEntry DOES carry a type field since T003 and s1-render-once's golden holds four, so Gate 3 now PASSES on a declared trigger and Gate 4 is repairable by narrowing to components whose every entry is annotated (re-measured 2026-08-01: ten of the seventeen goldens fully annotated, 15 of 30 entries, zero mixed; the seven others 0 of 15). GATE 5 DECIDES AND FAILS, measured at vue@3.5.40: the array form compiles to props: ['label', ...] while the type-argument form compiles to props: { visible: { type: Boolean, required: true }, ... }, and those runtime options change what renders - an absent "visible" goes from undefined to false, and visible="" goes from the FALSY string "" to a TRUTHY true, flipping any v-if reading it. Two diagnostics also appear that the baseline never emits, Missing required prop and Invalid prop type check failed, and the required:true they enforce is synthesized from TS non-optionality that NO IR FIELD DECLARES. Re-open on those three deltas, not on IR-8`,
 					line,
 				),
 			);

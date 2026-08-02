@@ -1199,10 +1199,15 @@ function propsDeclaration(component: EnrichedComponent): Statement | null {
 	// would have to be given an INVENTED `required` - or a `required: false` that
 	// silently contradicts a source that may well demand them. Emitting the array
 	// form for the whole component keeps every prop in one regime and fails
-	// closed to the behaviour this lane already ships. MEASURED at the time of
-	// writing: annotation is per-component all-or-nothing across the corpus
-	// (RenderOnce 4/4, the other seven scenarios 0/15), so this branch is a
-	// guard against a corpus that changes, not a live split.
+	// closed to the behaviour this lane already ships. RE-MEASURED 2026-08-01 at
+	// 602e49c over the seventeen-golden corpus: annotation is still per-component
+	// all-or-nothing - ZERO mixed components - but the split is no longer one
+	// against the field. TEN goldens are fully typed (S1 4/4, S8 2/2, S14 2/2,
+	// and S10-S13/S15-S17 at 1/1 each: 15 of 30 entries) and SEVEN are fully
+	// untyped (S2-S7 and S9: 0 of 15), so BOTH branches are LIVE - the `!typed`
+	// branch prints the `defineProps([...])` shipped in generated/ for S2-S7, S9
+	// and M1-panel - and only the PARTIAL case this comment argues from remains a
+	// guard with no corpus instance.
 	const typed = entries.every((entry) => entry.type !== undefined);
 	if (!typed)
 		return variable(
