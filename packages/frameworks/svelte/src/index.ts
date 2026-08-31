@@ -1,3 +1,4 @@
+export { SVELTE_API_GENERATION } from './api-generation.ts';
 export { emit, SANCTIONED_SVELTE_IGNORE_CODES, validateEnrichedIr } from './emitter/index.ts';
 export { formatEmitted } from './format-emitted.ts';
 export {
