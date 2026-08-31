@@ -496,6 +496,9 @@ importers:
       '@qwik.dev/core':
         specifier: 2.0.0-beta.38
         version: 2.0.0-beta.38(prettier@3.9.6)(vite@8.0.16(@types/node@24.12.2)(esbuild@0.28.1)(sass@1.99.0)(yaml@2.9.0))(vitest@4.1.5)
+      '@typescript-eslint/parser':
+        specifier: ^8.65.0
+        version: 8.65.0(eslint@9.39.5)(typescript@6.0.3)
       eslint:
         specifier: ^9.39.2
         version: 9.39.5
@@ -539,6 +542,9 @@ importers:
       '@frameless/compiler':
         specifier: workspace:*
         version: link:../../compiler
+      '@typescript-eslint/parser':
+        specifier: ^8.65.0
+        version: 8.65.0(eslint@9.39.5)(typescript@6.0.3)
       eslint:
         specifier: ^9.39.2
         version: 9.39.5
@@ -603,6 +609,9 @@ importers:
       '@frameless/compiler':
         specifier: workspace:*
         version: link:../../compiler
+      '@typescript-eslint/parser':
+        specifier: ^8.65.0
+        version: 8.65.0(eslint@9.39.5)(typescript@6.0.3)
       eslint:
         specifier: ^9.39.2
         version: 9.39.5
@@ -637,6 +646,9 @@ importers:
       solid-beta9:
         specifier: npm:solid-js@2.0.0-beta.9
         version: solid-js@2.0.0-beta.9
+      solid-rc4:
+        specifier: npm:solid-js@2.0.0-rc.4
+        version: solid-js@2.0.0-rc.4
       vite:
         specifier: catalog:default
         version: 8.0.16(@types/node@24.12.2)(esbuild@0.28.1)(sass@1.99.0)(yaml@2.9.0)
@@ -664,6 +676,9 @@ importers:
       '@frameless/compiler':
         specifier: workspace:*
         version: link:../../compiler
+      '@typescript-eslint/parser':
+        specifier: ^8.65.0
+        version: 8.65.0(eslint@9.39.5)(typescript@6.0.3)
       eslint:
         specifier: ^9.39.2
         version: 9.39.5
@@ -3029,6 +3044,9 @@ packages:
 
   '@solidjs/signals@2.0.0-beta.20':
     resolution: {integrity: sha512-9fs7Bf9rkOeWQqHBPmt2wyEPo3TloRRJQ2yrqH7HOyYAHsUXicdL8334P0aUFwEK0teOIFeyEqBVAX8BHkKhDw==}
+
+  '@solidjs/signals@2.0.0-rc.4':
+    resolution: {integrity: sha512-l7P0g8+2pnNscaIPOGDMhv0boaidGAsvR8QN66JySIWNMvVnuq2ayv7ZnvP+IR00DJC+RqCNnnTG/UCdxf+h8g==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -6217,6 +6235,9 @@ packages:
   solid-js@2.0.0-beta.9:
     resolution: {integrity: sha512-mvQphbOb/4wcrOicuZVPax19P4QfI0/q1NC/uy7Yt33TipSNj0wOnTA7uYMswBP6WC7vV7TgJ+pSqNX005E2ag==}
 
+  solid-js@2.0.0-rc.4:
+    resolution: {integrity: sha512-hSkDmtduesjFtvzjNyqLphrqiSvhSD5+njkPQUR+9YEoR60MMWtuv36SbLL4OucI0Ronof3Jc+AsUp0oWffwMg==}
+
   solid-refresh@0.6.3:
     resolution: {integrity: sha512-F3aPsX6hVw9ttm5LYlth8Q15x6MlI/J3Dn+o3EQyRTtTxidepSTwAYdozt01/YA+7ObcciagGEyXIopGZzQtbA==}
     peerDependencies:
@@ -8927,6 +8948,8 @@ snapshots:
       '@sigstore/protobuf-specs': 0.5.1
 
   '@solidjs/signals@2.0.0-beta.20': {}
+
+  '@solidjs/signals@2.0.0-rc.4': {}
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -12902,6 +12925,13 @@ snapshots:
   solid-js@2.0.0-beta.9:
     dependencies:
       '@solidjs/signals': 2.0.0-beta.20
+      csstype: 3.2.3
+      seroval: 1.5.6
+      seroval-plugins: 1.5.6(seroval@1.5.6)
+
+  solid-js@2.0.0-rc.4:
+    dependencies:
+      '@solidjs/signals': 2.0.0-rc.4
       csstype: 3.2.3
       seroval: 1.5.6
       seroval-plugins: 1.5.6(seroval@1.5.6)
