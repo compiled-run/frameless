@@ -93,16 +93,24 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 
 ## Framework-version honesty
 
-The executable package lane is named exactly `solid-1.8.22-fallback` and pins Solid 1.8.22 with
-`vite-plugin-solid` 2.11.10. The T003 research ledger was refreshed against Solid
-`v2.0.0-beta.9`, superseding the POC's older experimental.16 blocker evidence, but this package is
-**not Solid 2 runtime-validated**. Its v2 items remain recorded migration work; the fallback browser
-lane must not be reported as Solid 2 evidence.
+The default `emit(ir)` lane is Solid 1.x. The executable browser lane is named exactly
+`solid-1.8.22-fallback` and pins Solid 1.8.22 with `vite-plugin-solid` 2.11.10.
 
-Solid 2 blocker evidence: beta.9 removes the `./web` and `./store` subpath exports that the v1
-toolchain output links against. `test/solid2-blocker.test.ts` is the executable contract; if a
-future Solid 2 pin restores either export or its replacement toolchain links successfully through
-the JSX runtime model, revisit the v1-fallback decision.
+Solid 2 is still RC (`2.0.0-rc.19` as of 2026-10-28). `emit(ir, { generation: 2 })`
+emits that API: `createStore` / `reconcile` from `solid-js`, draft-first store setters
+(no `produce`), `setStore(s => reconcile(next, key)(s))` for structural writes,
+`<For keyed={(row) => row.id}>` with accessor children, no `attr:` namespace, and
+`flush()` after signal/store writes so later reads see the committed value. That lane
+is **API-surface tested, not browser-validated** — the v1 Vite/Babel toolchain cannot
+compile it, and `@solidjs/vite-plugin` is not wired into this package's browser project yet.
+
+Generation 1 stays in Frameless until Solid 2 has been a stable release for a decent stretch.
+It then moves to [versionless](https://github.com/compiled-run/versionless), which does not
+yet have a Solid package. `SOLID_API_GENERATIONS` in `src/api-generation.ts` is the
+executable record of that split.
+
+Solid 2 RC still does not export `./web` or `./store` on `solid-js`; JSX runtime lives on
+`@solidjs/web`. `test/solid2-blocker.test.ts` pins that contract against `solid-rc19`.
 
 ## Generality boundary
 

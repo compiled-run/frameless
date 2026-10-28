@@ -1,3 +1,4 @@
+export { REACT_API_GENERATION } from './api-generation.ts';
 export { createReactAdapter } from './adapter.ts';
 export { emit, validateEnrichedIr } from './emitter/index.ts';
 export { formatEmitted } from './format-emitted.ts';
