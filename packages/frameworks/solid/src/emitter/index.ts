@@ -2329,20 +2329,34 @@ function rewriteExpressionAst(result: t.Expression, context: EmitContext): t.Exp
 				let value = node.right;
 				if (state.storage === 'store') {
 					const key = context.storeKeys.get(state.id);
-					const options =
-						key == null
-							? []
-							: context.generation === 2
-								? [t.stringLiteral(key)]
-								: [
-										t.objectExpression([
-											t.objectProperty(
-												t.identifier('key'),
-												t.stringLiteral(key),
-											),
-										]),
-									];
-					value = t.callExpression(api(context, 'reconcile'), [value, ...options]);
+					if (context.generation === 2) {
+						const reconcileArgs =
+							key == null ? [value] : [value, t.stringLiteral(key)];
+						const applicator = t.callExpression(
+							api(context, 'reconcile'),
+							reconcileArgs,
+						);
+						const draftName = context.names.claim('storeDraft');
+						value = t.arrowFunctionExpression(
+							[t.identifier(draftName)],
+							t.callExpression(applicator, [t.identifier(draftName)]),
+						);
+					} else {
+						const options = key
+							? [
+									t.objectExpression([
+										t.objectProperty(
+											t.identifier('key'),
+											t.stringLiteral(key),
+										),
+									]),
+								]
+							: [];
+						value = t.callExpression(api(context, 'reconcile'), [
+							value,
+							...options,
+						]);
+					}
 				}
 				replace(
 					node,

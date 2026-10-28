@@ -13,6 +13,7 @@ import { SOLID_API_GENERATIONS } from '../src/api-generation.ts';
 
 const root = resolve(import.meta.dirname, '..');
 const nodeRequire = createRequire(import.meta.url);
+const rcAlias = SOLID_API_GENERATIONS.pins[2].alias;
 
 interface BabelCore {
 	transformAsync(
@@ -44,7 +45,7 @@ function resolutionErrorCode(specifier: string): string | undefined {
 
 async function rcManifest(): Promise<PackageManifest> {
 	return JSON.parse(
-		await readFile(nodeRequire.resolve('solid-rc4/package.json'), 'utf8'),
+		await readFile(nodeRequire.resolve(`${rcAlias}/package.json`), 'utf8'),
 	) as PackageManifest;
 }
 
@@ -86,15 +87,15 @@ describe('Solid 2 toolchain contract', () => {
 		expect(importSources(result?.code ?? '')).toContain('solid-js/web');
 	});
 
-	test('rc.4 cannot link the v1 web or store subpaths and does export createStore from root', async () => {
+	test('rc.19 cannot link the v1 web or store subpaths', async () => {
 		expect(nodeRequire.resolve('solid-js/web')).toBeTypeOf('string');
 		expect(nodeRequire.resolve('solid-js/store')).toBeTypeOf('string');
 
-		expect(resolutionErrorCode('solid-rc4/web')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
-		expect(resolutionErrorCode('solid-rc4/store')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+		expect(resolutionErrorCode(`${rcAlias}/web`)).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+		expect(resolutionErrorCode(`${rcAlias}/store`)).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
 
 		const manifest = await rcManifest();
-		expect(manifest.version).toBe('2.0.0-rc.4');
+		expect(manifest.version).toBe('2.0.0-rc.19');
 	});
 
 	test('generation 1 stays in Frameless until Solid 2 is a long-lived stable', () => {

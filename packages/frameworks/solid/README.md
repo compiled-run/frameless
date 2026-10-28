@@ -96,12 +96,13 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 The default `emit(ir)` lane is Solid 1.x. The executable browser lane is named exactly
 `solid-1.8.22-fallback` and pins Solid 1.8.22 with `vite-plugin-solid` 2.11.10.
 
-Solid 2 reached RC (`2.0.0-rc.4`). `emit(ir, { generation: 2 })` emits that API:
-`createStore` / `reconcile` from `solid-js`, draft-first store setters (no `produce`),
-`<For keyed={(row) => row.id}>` with accessor children, no `attr:` namespace, and `flush()`
-after signal/store writes so later reads see the committed value. That lane is
-**API-surface tested, not browser-validated** — the v1 Vite/Babel toolchain cannot compile
-it, and `@solidjs/vite-plugin` is not wired into this package's browser project yet.
+Solid 2 is still RC (`2.0.0-rc.19` as of 2026-10-28). `emit(ir, { generation: 2 })`
+emits that API: `createStore` / `reconcile` from `solid-js`, draft-first store setters
+(no `produce`), `setStore(s => reconcile(next, key)(s))` for structural writes,
+`<For keyed={(row) => row.id}>` with accessor children, no `attr:` namespace, and
+`flush()` after signal/store writes so later reads see the committed value. That lane
+is **API-surface tested, not browser-validated** — the v1 Vite/Babel toolchain cannot
+compile it, and `@solidjs/vite-plugin` is not wired into this package's browser project yet.
 
 Generation 1 stays in Frameless until Solid 2 has been a stable release for a decent stretch.
 It then moves to [versionless](https://github.com/compiled-run/versionless), which does not
@@ -109,7 +110,7 @@ yet have a Solid package. `SOLID_API_GENERATIONS` in `src/api-generation.ts` is 
 executable record of that split.
 
 Solid 2 RC still does not export `./web` or `./store` on `solid-js`; JSX runtime lives on
-`@solidjs/web`. `test/solid2-blocker.test.ts` pins that contract against `solid-rc4`.
+`@solidjs/web`. `test/solid2-blocker.test.ts` pins that contract against `solid-rc19`.
 
 ## Generality boundary
 

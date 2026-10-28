@@ -14,7 +14,8 @@ describe('Solid API generation inventory', () => {
 	test('keeps generation 1 as default and treats generation 2 RC as a sibling lane', () => {
 		expect(SOLID_API_GENERATIONS.supported).toEqual([1, 2]);
 		expect(SOLID_API_GENERATIONS.defaultGeneration).toBe(1);
-		expect(SOLID_API_GENERATIONS.pins[2].version).toBe('2.0.0-rc.4');
+		expect(SOLID_API_GENERATIONS.pins[2].version).toBe('2.0.0-rc.19');
+		expect(SOLID_API_GENERATIONS.pins[2].alias).toBe('solid-rc19');
 		expect(SOLID_API_GENERATIONS.versionless.frameworkSupport).toBe('absent');
 		expect(SOLID_API_GENERATIONS.versionless.moveGeneration1When).toBe(
 			'solid-2-stable-for-a-decent-bit',
@@ -42,8 +43,9 @@ describe('Solid generation-2 emit', () => {
 		expect(source).not.toContain('attr:value');
 		expect(source).toContain('keyed={(todo) => todo.id}');
 		expect(source).toContain('todo().id');
-		expect(source).toContain('reconcile(');
+		expect(source).toMatch(/reconcile\([\s\S]*?,\s*'id'\)\(/);
 		expect(source).not.toContain("{ key: 'id' }");
+		expect(source).not.toMatch(/setTodos\(\s*reconcile\(/);
 	});
 
 	test('default emit stays generation 1 and does not import flush or keyed For', async () => {
