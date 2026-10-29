@@ -13,7 +13,14 @@ import {
 	type SharedDefinition,
 	type TemplateNode,
 } from '@frameless/compiler';
+import {
+	SOLID_API_GENERATIONS,
+	type SolidApiGeneration,
+	type SolidEmitOptions,
+} from '../api-generation.ts';
 import * as t from './estree.ts';
+
+export type { SolidApiGeneration, SolidEmitOptions };
 
 const LEGACY_STRING_FIELDS = new Set(['functionSource', 'handlerSources', 'valueSource']);
 
@@ -27,17 +34,21 @@ type ApiName =
 	| 'untrack'
 	| 'For'
 	| 'Show'
+	| 'flush'
 	| 'createContext'
 	| 'useContext'
 	| 'createEffect'
 	| 'onMount'
+	| 'onSettled'
 	| 'onCleanup';
 type EmitContext = {
 	readonly api: ReadonlyMap<ApiName, string>;
 	readonly bindingsById: ReadonlyMap<string, EnrichedGraphBinding>;
 	readonly computedByName: ReadonlyMap<string, EnrichedGraphBinding>;
 	readonly events: ReadonlyMap<string, EnrichedEventRecord>;
+	readonly generation: SolidApiGeneration;
 	readonly imports: Set<ApiName>;
+	readonly itemAccessors: ReadonlySet<string>;
 	readonly lexicalNames: ReadonlySet<string>;
 	readonly names: NameAllocator;
 	readonly persistenceByGraph: ReadonlyMap<string, FramelessPersistenceRecord>;
@@ -49,6 +60,87 @@ type EmitContext = {
 	readonly statesByName: ReadonlyMap<string, StateBinding>;
 	readonly storeKeys: ReadonlyMap<string, string>;
 };
+
+function resolveGeneration(options?: SolidEmitOptions): SolidApiGeneration {
+	const generation = options?.generation ?? SOLID_API_GENERATIONS.defaultGeneration;
+	if (generation !== 1 && generation !== 2) {
+		throw new Error(`Unsupported Solid API generation: ${String(generation)}`);
+	}
+	return generation;
+}
+
+function claimApiNames(
+	allocator: NameAllocator,
+	generation: SolidApiGeneration,
+	surface: 'component' | 'composition',
+): Map<ApiName, string> {
+	const names: ApiName[] = [
+		'createSignal',
+		'createStore',
+		'reconcile',
+		'untrack',
+		'For',
+		'Show',
+		...(generation === 1 ? (['produce'] as const) : (['flush'] as const)),
+		...(surface === 'composition'
+			? generation === 2
+				? (['createContext', 'useContext', 'createEffect', 'onSettled', 'onCleanup'] as const)
+				: (['createContext', 'useContext', 'createEffect', 'onMount', 'onCleanup'] as const)
+			: []),
+	];
+	const apiNames = new Map<ApiName, string>();
+	for (const name of names) apiNames.set(name, allocator.claim(name));
+	return apiNames;
+}
+
+function addGenerationImports(
+	generation: SolidApiGeneration,
+	addImport: (source: string, candidates: ApiName[]) => void,
+): void {
+	if (generation === 2) {
+		addImport('solid-js', [
+			'createSignal',
+			'untrack',
+			'For',
+			'Show',
+			'createStore',
+			'reconcile',
+			'flush',
+			'createContext',
+			'useContext',
+			'createEffect',
+			'onSettled',
+			'onCleanup',
+		]);
+		return;
+	}
+	addImport('solid-js', [
+		'createSignal',
+		'untrack',
+		'For',
+		'Show',
+		'createContext',
+		'useContext',
+		'createEffect',
+		'onMount',
+		'onCleanup',
+	]);
+	addImport('solid-js/store', ['createStore', 'produce', 'reconcile']);
+}
+
+function forKeyedAttribute(
+	node: Extract<TemplateNode, { kind: 'keyed-repeat' }>,
+): t.JSXAttribute | null {
+	const path = itemMemberPath(node.key.expression, node.item);
+	if (!path) return null;
+	return jsxAttribute(
+		'keyed',
+		t.arrowFunctionExpression(
+			[t.identifier(node.item)],
+			pathMember(t.identifier(node.item), path),
+		),
+	);
+}
 type RenderedNode = t.JSXElement | t.JSXExpressionContainer | t.JSXFragment | t.JSXText;
 
 function walk(value: unknown, visit: (record: RecordLike) => void): void {
@@ -2190,7 +2282,13 @@ function rewriteExpressionAst(result: t.Expression, context: EmitContext): t.Exp
 			const writeTarget =
 				(parent?.type === 'AssignmentExpression' && parent.left === node) ||
 				(parent?.type === 'UpdateExpression' && parent.argument === node);
-			if (writeTarget || context.lexicalNames.has(node.name)) continue;
+			if (writeTarget) continue;
+			if (context.itemAccessors.has(node.name)) {
+				if (parent?.type === 'Property' && parent.shorthand) parent.shorthand = false;
+				replace(node, t.callExpression(t.identifier(node.name), []));
+				continue;
+			}
+			if (context.lexicalNames.has(node.name)) continue;
 			const prop = context.propsByLocal.get(node.name);
 			const state = context.statesByName.get(node.name);
 			const computed = context.computedByName.get(node.name);
@@ -2231,14 +2329,34 @@ function rewriteExpressionAst(result: t.Expression, context: EmitContext): t.Exp
 				let value = node.right;
 				if (state.storage === 'store') {
 					const key = context.storeKeys.get(state.id);
-					const options = key
-						? [
-								t.objectExpression([
-									t.objectProperty(t.identifier('key'), t.stringLiteral(key)),
-								]),
-							]
-						: [];
-					value = t.callExpression(api(context, 'reconcile'), [value, ...options]);
+					if (context.generation === 2) {
+						const reconcileArgs =
+							key == null ? [value] : [value, t.stringLiteral(key)];
+						const applicator = t.callExpression(
+							api(context, 'reconcile'),
+							reconcileArgs,
+						);
+						const draftName = context.names.claim('storeDraft');
+						value = t.arrowFunctionExpression(
+							[t.identifier(draftName)],
+							t.callExpression(applicator, [t.identifier(draftName)]),
+						);
+					} else {
+						const options = key
+							? [
+									t.objectExpression([
+										t.objectProperty(
+											t.identifier('key'),
+											t.stringLiteral(key),
+										),
+									]),
+								]
+							: [];
+						value = t.callExpression(api(context, 'reconcile'), [
+							value,
+							...options,
+						]);
+					}
 				}
 				replace(
 					node,
@@ -2317,18 +2435,26 @@ function repeatNode(
 ): t.JSXElement {
 	const lexicalNames = new Set(context.lexicalNames).add(node.item);
 	if (node.index) lexicalNames.add(node.index);
-	const rowContext = { ...context, lexicalNames };
+	const rowContext = {
+		...context,
+		lexicalNames,
+		itemAccessors:
+			context.generation === 2
+				? new Set(context.itemAccessors).add(node.item)
+				: context.itemAccessors,
+	};
 	const callback = t.arrowFunctionExpression(
 		[t.identifier(node.item)],
 		expressionFromNodes(node.row, rowContext),
 	);
 	const name = t.jsxIdentifier(api(context, 'For').name);
+	const attributes = [jsxAttribute('each', rewriteExpression(node.collection.expression, context))];
+	if (context.generation === 2) {
+		const keyed = forKeyedAttribute(node);
+		if (keyed) attributes.push(keyed);
+	}
 	return t.jsxElement(
-		t.jsxOpeningElement(
-			name,
-			[jsxAttribute('each', rewriteExpression(node.collection.expression, context))],
-			false,
-		),
+		t.jsxOpeningElement(name, attributes, false),
 		t.jsxClosingElement(t.cloneNode(name)),
 		[t.jsxExpressionContainer(callback)],
 		false,
@@ -2357,7 +2483,11 @@ function templateNode(node: TemplateNode, context: EmitContext): RenderedNode {
 	for (const binding of node.dynamicBindings) {
 		const value = rewriteExpression(binding.expression, context);
 		attributes.push(jsxAttribute(binding.name, value));
-		if (binding.kind === 'property' && binding.name === 'value')
+		if (
+			context.generation === 1 &&
+			binding.kind === 'property' &&
+			binding.name === 'value'
+		)
 			attributes.push(jsxAttribute('attr:value', t.cloneNode(value, true)));
 	}
 	for (const eventId of node.eventIds) {
@@ -2518,10 +2648,12 @@ function lowerStoreMemberWrites(
 			[t.cloneNode(draft)],
 			t.blockStatement([aliasDeclaration, t.cloneNode(assignment, true)]),
 		);
+		const setterArgument =
+			context.generation === 2
+				? callback
+				: t.callExpression(api(context, 'produce'), [callback]);
 		const call = t.expressionStatement(
-			t.callExpression(t.identifier(context.settersById.get(state.id)!), [
-				t.callExpression(api(context, 'produce'), [callback]),
-			]),
+			t.callExpression(t.identifier(context.settersById.get(state.id)!), [setterArgument]),
 		);
 		const insertion = copyIndex >= 0 ? copyIndex : aliasIndex;
 		replacements.set(insertion, call);
@@ -2650,8 +2782,24 @@ function normalizeHandler(
 			),
 		);
 	}
+	insertFlushAfterSetters(rewritten, context);
 	appendPersistenceWrites(rewritten, context);
 	return rewritten;
+}
+
+function insertFlushAfterSetters(fn: t.ArrowFunctionExpression, context: EmitContext): void {
+	if (context.generation !== 2 || !t.isBlockStatement(fn.body)) return;
+	const setters = new Set(context.settersById.values());
+	fn.body.body = fn.body.body.flatMap((statement: t.Statement) => {
+		if (
+			!t.isExpressionStatement(statement) ||
+			!t.isCallExpression(statement.expression) ||
+			!t.isIdentifier(statement.expression.callee) ||
+			!setters.has(statement.expression.callee.name)
+		)
+			return [statement];
+		return [statement, t.expressionStatement(t.callExpression(api(context, 'flush'), []))];
+	});
 }
 
 function emitEvent(event: EnrichedEventRecord, context: EmitContext): t.ArrowFunctionExpression {
@@ -3247,19 +3395,27 @@ function compositionTemplateNode(node: TemplateNode, context: CompositionContext
 	if (node.kind === 'keyed-repeat') {
 		const lexicalNames = new Set(context.base.lexicalNames).add(node.item);
 		if (node.index) lexicalNames.add(node.index);
-		const rowContext = { ...context, base: { ...context.base, lexicalNames } };
+		const itemAccessors =
+			context.base.generation === 2
+				? new Set(context.base.itemAccessors).add(node.item)
+				: context.base.itemAccessors;
+		const rowContext = {
+			...context,
+			base: { ...context.base, lexicalNames, itemAccessors },
+		};
 		const name = t.jsxIdentifier(api(context.base, 'For').name);
-		return t.jsxElement(
-			t.jsxOpeningElement(
-				name,
-				[
-					jsxAttribute(
-						'each',
-						rewriteCompositionExpression(node.collection.expression, context),
-					),
-				],
-				false,
+		const attributes = [
+			jsxAttribute(
+				'each',
+				rewriteCompositionExpression(node.collection.expression, context),
 			),
+		];
+		if (context.base.generation === 2) {
+			const keyed = forKeyedAttribute(node);
+			if (keyed) attributes.push(keyed);
+		}
+		return t.jsxElement(
+			t.jsxOpeningElement(name, attributes, false),
 			t.jsxClosingElement(t.cloneNode(name)),
 			[
 				t.jsxExpressionContainer(
@@ -3402,6 +3558,7 @@ function sharedMethodArrow(
 	const rewritten = rewriteExpressionAst(arrow, context);
 	if (!t.isArrowFunctionExpression(rewritten))
 		throw new Error(`SharedDefinitionMethod ${method.name} lost its action shape`);
+	insertFlushAfterSetters(rewritten, context);
 	appendPersistenceWrites(rewritten, context);
 	return rewritten;
 }
@@ -3986,9 +4143,18 @@ function compositionComponent(
 						[t.identifier('node')],
 						t.blockStatement([
 							t.expressionStatement(
-								t.callExpression(api(componentBase, 'onMount'), [
-									t.arrowFunctionExpression([], t.blockStatement(directiveBody)),
-								]),
+								t.callExpression(
+									api(
+										componentBase,
+										componentBase.generation === 2 ? 'onSettled' : 'onMount',
+									),
+									[
+										t.arrowFunctionExpression(
+											[],
+											t.blockStatement(directiveBody),
+										),
+									],
+								),
 							),
 						]),
 					),
@@ -4023,31 +4189,18 @@ function compositionComponent(
 	return exportedNames.has(component.name) ? t.exportNamedDeclaration(declaration) : declaration;
 }
 
-function emitComposition(ir: EnrichedIR): string {
+function emitComposition(ir: EnrichedIR, generation: SolidApiGeneration): string {
 	const allocator = new NameAllocator(compositionAuthoredNames(ir));
-	const apiNames = new Map<ApiName, string>();
-	for (const name of [
-		'createSignal',
-		'createStore',
-		'produce',
-		'reconcile',
-		'untrack',
-		'For',
-		'Show',
-		'createContext',
-		'useContext',
-		'createEffect',
-		'onMount',
-		'onCleanup',
-	] as const)
-		apiNames.set(name, allocator.claim(name));
+	const apiNames = claimApiNames(allocator, generation, 'composition');
 	const persistenceWrites = { emitted: false };
 	const base: EmitContext = {
 		api: apiNames,
 		bindingsById: new Map(),
 		computedByName: new Map(),
 		events: new Map(ir.records.events.map((event) => [event.id, event])),
+		generation,
 		imports: new Set(),
+		itemAccessors: new Set(),
 		lexicalNames: new Set(),
 		names: allocator,
 		persistenceByGraph: new Map(
@@ -4120,18 +4273,7 @@ function emitComposition(ir: EnrichedIR): string {
 				),
 			);
 	};
-	addImport('solid-js', [
-		'createSignal',
-		'untrack',
-		'For',
-		'Show',
-		'createContext',
-		'useContext',
-		'createEffect',
-		'onMount',
-		'onCleanup',
-	]);
-	addImport('solid-js/store', ['createStore', 'produce', 'reconcile']);
+	addGenerationImports(generation, addImport);
 	const programBody = [...imports, ...declarations];
 	if (persistenceWrites.emitted) {
 		let lastImport = -1;
@@ -4150,24 +4292,15 @@ function emitComposition(ir: EnrichedIR): string {
 	return source;
 }
 
-/** Emit one Solid 1.x-compatible .tsx module from frameless-enriched-ir/2. */
-export function emit(ir: EnrichedIR): string {
+/** Emit one Solid module from frameless-enriched-ir/2. Defaults to generation 1. */
+export function emit(ir: EnrichedIR, options?: SolidEmitOptions): string {
 	validateEnrichedIr(ir);
-	if (hasComposition(ir)) return emitComposition(ir);
+	const generation = resolveGeneration(options);
+	if (hasComposition(ir)) return emitComposition(ir, generation);
 	const component = ir.components[0]!;
 	const authored = collectAuthoredNames(ir);
 	const allocator = new NameAllocator(authored);
-	const apiNames = new Map<ApiName, string>();
-	for (const name of [
-		'createSignal',
-		'createStore',
-		'produce',
-		'reconcile',
-		'untrack',
-		'For',
-		'Show',
-	] as const)
-		apiNames.set(name, allocator.claim(name));
+	const apiNames = claimApiNames(allocator, generation, 'component');
 	const visible = referencedGraphIds(component, ir.records);
 	const storeKeys = collectStoreKeys(component);
 	const statesById = new Map<string, StateBinding>();
@@ -4206,7 +4339,9 @@ export function emit(ir: EnrichedIR): string {
 				.map((binding) => [binding.name, binding]),
 		),
 		events: new Map(ir.records.events.map((event) => [event.id, event])),
+		generation,
 		imports: new Set(),
+		itemAccessors: new Set(),
 		lexicalNames: new Set(),
 		names: allocator,
 		persistenceByGraph: new Map(
@@ -4221,8 +4356,6 @@ export function emit(ir: EnrichedIR): string {
 		storeKeys,
 	};
 	const exported = componentFunction(ir, component, context);
-	const solidNames: ApiName[] = ['createSignal', 'untrack', 'For', 'Show'];
-	const storeNames: ApiName[] = ['createStore', 'produce', 'reconcile'];
 	const declarations: t.Statement[] = [];
 	const addImport = (source: string, candidates: ApiName[]): void => {
 		const names = candidates.filter((name) => context.imports.has(name));
@@ -4236,8 +4369,7 @@ export function emit(ir: EnrichedIR): string {
 			),
 		);
 	};
-	addImport('solid-js', solidNames);
-	addImport('solid-js/store', storeNames);
+	addGenerationImports(generation, addImport);
 	if (persistenceWrites.emitted) declarations.push(persistenceHelperDeclaration());
 	declarations.push(exported);
 	const source = `// @generated by @frameless/solid; do not edit.\n${printTopLevel(t.program(declarations))}\n`;
