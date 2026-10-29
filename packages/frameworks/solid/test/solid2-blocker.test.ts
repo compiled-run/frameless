@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { resolve } from 'pathe';
 import { describe, expect, test } from 'vitest';
 import { parse } from 'yuku-parser';
+import { SOLID_API_GENERATIONS } from '../src/api-generation.ts';
 
 // `tsx`, NOT `jsx`, AT EVERY SITE IN THIS FILE THAT PARSES EMITTED OUTPUT.
 // The artifact became `.tsx` at `frameless-emitter-capability-v1` T009/T011 and
@@ -12,6 +13,7 @@ import { parse } from 'yuku-parser';
 
 const root = resolve(import.meta.dirname, '..');
 const nodeRequire = createRequire(import.meta.url);
+const rcAlias = SOLID_API_GENERATIONS.pins[2].alias;
 
 interface BabelCore {
 	transformAsync(
@@ -41,23 +43,27 @@ function resolutionErrorCode(specifier: string): string | undefined {
 	}
 }
 
-async function betaManifest(): Promise<PackageManifest> {
+async function rcManifest(): Promise<PackageManifest> {
 	return JSON.parse(
-		await readFile(nodeRequire.resolve('solid-beta9/package.json'), 'utf8'),
+		await readFile(nodeRequire.resolve(`${rcAlias}/package.json`), 'utf8'),
 	) as PackageManifest;
 }
 
-describe('Solid 2 toolchain blocker contract', () => {
-	test('pins the T003 evidence runtime and its JSX-runtime migration path', async () => {
-		// T003 uses Solid 2.0.0-beta.9 as its evidence base.
-		const manifest = await betaManifest();
-		expect(manifest.version).toBe('2.0.0-beta.9');
+describe('Solid 2 toolchain contract', () => {
+	test('pins the RC evidence runtime and records that jsx-runtime left solid-js', async () => {
+		const manifest = await rcManifest();
+		expect(manifest.version).toBe(SOLID_API_GENERATIONS.pins[2].version);
+		expect(SOLID_API_GENERATIONS.supported).toEqual([1, 2]);
+		expect(SOLID_API_GENERATIONS.defaultGeneration).toBe(1);
 
-		// Solid 2's toolchain moves to the JSX runtime model.
-		expect(Object.keys(manifest.exports)).toContain('./jsx-runtime');
+		// Solid 2 RC moved JSX types onto @solidjs/web. The beta.9 contract that
+		// expected ./jsx-runtime on solid-js itself is overturned.
+		expect(Object.keys(manifest.exports)).not.toContain('./jsx-runtime');
+		expect(Object.keys(manifest.exports)).not.toContain('./web');
+		expect(Object.keys(manifest.exports)).not.toContain('./store');
 	});
 
-	test('emitted S2 output links to the Solid 1 store subpath', async () => {
+	test('emitted S2 generation-1 output still links to the Solid 1 store subpath', async () => {
 		const source = await readFile(resolve(root, 'generated/S2.tsx'), 'utf8');
 		expect(importSources(source)).toContain('solid-js/store');
 	});
@@ -82,13 +88,28 @@ describe('Solid 2 toolchain blocker contract', () => {
 		expect(importSources(result?.code ?? '')).toContain('solid-js/web');
 	});
 
-	test('beta.9 cannot link the v1 web or store dependencies', () => {
+	test('rc.19 cannot link the v1 web or store subpaths', async () => {
 		expect(nodeRequire.resolve('solid-js/web')).toBeTypeOf('string');
 		expect(nodeRequire.resolve('solid-js/store')).toBeTypeOf('string');
 
-		// OVERTURN TRIGGER: revisit the v1 fallback when a future Solid 2 pin exports
-		// these paths or its replacement toolchain no longer emits them.
-		expect(resolutionErrorCode('solid-beta9/web')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
-		expect(resolutionErrorCode('solid-beta9/store')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+		expect(resolutionErrorCode(`${rcAlias}/web`)).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+		expect(resolutionErrorCode(`${rcAlias}/store`)).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+
+		const manifest = await rcManifest();
+		expect(manifest.version).toBe('2.0.0-rc.19');
+	});
+
+	test('generation 1 stays in Frameless until Solid 2 is a long-lived stable', () => {
+		expect(SOLID_API_GENERATIONS.versionless.frameworkSupport).toBe('absent');
+		expect(SOLID_API_GENERATIONS.versionless.moveGeneration1When).toBe(
+			'solid-2-stable-for-a-decent-bit',
+		);
+		expect(SOLID_API_GENERATIONS.generation1ApisOwnedHereUntilSolid2IsStable).toEqual([
+			'solid-js/store',
+			'produce',
+			'attr:value',
+			'onMount',
+			'reconcile(next, { key })',
+		]);
 	});
 });
