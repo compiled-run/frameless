@@ -96,14 +96,17 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 The default `emit(ir)` lane is Solid 1.x. The executable browser lane is named exactly
 `solid-1.8.22-fallback` and pins Solid 1.8.22 with `vite-plugin-solid` 2.11.10.
 
-Solid 2 is still RC (`2.0.0-rc.20` as of 2026-10-30). `emit(ir, { generation: 2 })`
+Solid 2 is still RC (`2.0.0-rc.20` as of 2026-10-31). `emit(ir, { generation: 2 })`
 emits that API: `createStore` / `reconcile` from `solid-js`, draft-first store setters
 (no `produce`), `setStore(s => reconcile(next, key)(s))` for structural writes,
-`<For keyed={(row) => row.id}>` with accessor children, no `attr:` namespace, and
-`flush()` after signal/store writes so later reads see the committed value. Composition
-attach uses an owned `createEffect(compute, apply)` plus a host signal as the ref, because
-Solid 2 ref callbacks are unowned. That lane is **API-surface tested, not
-browser-validated** — the v1 Vite/Babel toolchain cannot compile it, and
+`<For keyed={(row) => row.id}>` with accessor children (including computed
+`row['id']` keys), no `attr:` namespace, and `flush()` after signal/store writes —
+including unbraced loop/conditional bodies — so later reads see the committed value.
+Composition attach is a Solid 2 directive factory: one owned
+`createEffect(compute, apply)` per behavior plus a host signal, invoked at the host as
+`ref={attachHost()}` (or `ref={[handle, attachHost()]}`) so each For/Show instance
+gets its own attach state. Ref callbacks stay unowned. That lane is **API-surface
+tested, not browser-validated** — the v1 Vite/Babel toolchain cannot compile it, and
 `@solidjs/vite-plugin` is not wired into this package's browser project yet.
 
 Generation 1 stays in Frameless until Solid 2 has been a stable release for a decent stretch.

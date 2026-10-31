@@ -7,7 +7,7 @@
  * Vue 3 baseline. Versionless has no Vue lane yet.
  */
 export const VUE_API_GENERATION = {
-	surveyedAt: '2026-10-30',
+	surveyedAt: '2026-10-31',
 	defaultGeneration: 3,
 	supported: [3],
 	pin: { package: 'vue', version: '^3.5.40' },

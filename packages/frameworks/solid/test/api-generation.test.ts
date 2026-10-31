@@ -65,7 +65,7 @@ describe('Solid generation-2 emit', () => {
 		expect(source).not.toContain('keyed=');
 	});
 
-	test('C4 attach uses owned split createEffect and a host signal as the ref', async () => {
+	test('C4 attach uses a directive factory so each host instance owns its effect', async () => {
 		const source = emit(await composition('C4-attach'), { generation: 2 });
 		expect(source).toMatch(/createEffect\(\(\) => \{/);
 		expect(source).toMatch(/createEffect\([\s\S]*\}, \(attachSnapshot\) => \{/);
@@ -74,5 +74,46 @@ describe('Solid generation-2 emit', () => {
 		expect(source).toContain('createSignal');
 		expect(source).toContain('attachSnapshot.behaviorInputInput');
 		expect(source).toContain('flush()');
+		expect(source).toMatch(/ref=\{attachHost\(\)\}/);
+	});
+
+	test('C3 forwarded attach composes the handle with a per-host factory', async () => {
+		const source = emit(await composition('C3-ref'), { generation: 2 });
+		expect(source).toMatch(/ref=\{\[/);
+		expect(source).toMatch(/attachHost\(\)/);
+		expect(source).not.toContain('onCleanup');
+	});
+
+	test('accepts computed-string repeat keys and flushes unbraced setter bodies', async () => {
+		const keyed = structuredClone(await golden('s2-keyed-todo.json'));
+		const repeats: Array<{ key?: { expression?: Record<string, unknown> } }> = [];
+		const walk = (value: unknown): void => {
+			if (!value || typeof value !== 'object') return;
+			if ((value as { kind?: string }).kind === 'keyed-repeat')
+				repeats.push(value as { key?: { expression?: Record<string, unknown> } });
+			for (const child of Object.values(value)) {
+				if (Array.isArray(child)) child.forEach(walk);
+				else walk(child);
+			}
+		};
+		walk(keyed.components[0].template);
+		const key = repeats[0]?.key;
+		expect(key?.expression?.type).toBe('MemberExpression');
+		key!.expression!.computed = true;
+		key!.expression!.property = { type: 'Literal', value: 'id', raw: "'id'" };
+		const keyedSource = emit(keyed, { generation: 2 });
+		expect(keyedSource).toContain('keyed={(todo) => todo.id}');
+		expect(keyedSource).toContain('todo().id');
+
+		const looped = await buildEnrichedIr({
+			filename: 'test/unbraced-loop.tsrx',
+			source: `import { state } from "@markless/core";
+export function Loop({ label }: { label: string }) @{
+	let count = state(0);
+	<button onClick={() => { while (count < 3) count++; }}>{count} {label}</button>
+}`,
+		});
+		const loopedSource = emit(looped, { generation: 2 });
+		expect(loopedSource).toMatch(/while \(count\(\) < 3\) \{\s*setCount\(count\(\) \+ 1\);\s*flush\(\);/s);
 	});
 });

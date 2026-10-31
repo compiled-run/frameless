@@ -4,7 +4,7 @@
  * Frameless keeps recent majors here. Older majors move to
  * https://github.com/compiled-run/versionless only after the successor has
  * been a stable release for a decent stretch. Solid 2 is still an RC
- * (`2.0.0-rc.20` as of 2026-10-30; API frozen, not a long-lived stable), so
+ * (`2.0.0-rc.20` as of 2026-10-31; API frozen, not a long-lived stable), so
  * generation 1 stays in this package beside generation 2.
  */
 export type SolidApiGeneration = 1 | 2;
@@ -14,7 +14,7 @@ export interface SolidEmitOptions {
 }
 
 export const SOLID_API_GENERATIONS = {
-	surveyedAt: '2026-10-30',
+	surveyedAt: '2026-10-31',
 	defaultGeneration: 1,
 	supported: [1, 2],
 	pins: {

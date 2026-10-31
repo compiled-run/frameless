@@ -2,13 +2,13 @@
  * Qwik API generation that Frameless emits.
  *
  * Frameless targets Qwik 2 (`@qwik.dev/core`). The executable pin is still
- * `2.0.0-beta.38`; latest published as of 2026-10-30 is `2.0.0-rc.4`. The
+ * `2.0.0-beta.38`; latest published as of 2026-10-31 is `2.0.0-rc.4`. The
  * `beta` dist-tag is `2.0.0-beta.40`. Qwik 1 (`@builder.io/qwik`) is the older
  * line. Versionless has no Qwik lane yet. Qwik 2 is still pre-stable, so a
  * Qwik 1 emit lane would stay in Frameless if one existed — it does not.
  */
 export const QWIK_API_GENERATION = {
-	surveyedAt: '2026-10-30',
+	surveyedAt: '2026-10-31',
 	defaultGeneration: 2,
 	supported: [2],
 	pin: { package: '@qwik.dev/core', version: '2.0.0-beta.38' },

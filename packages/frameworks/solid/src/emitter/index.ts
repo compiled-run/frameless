@@ -227,8 +227,10 @@ function containsElement(node: TemplateNode): boolean {
 function memberPath(node: t.Node): { root: t.Identifier; path: string[] } | null {
 	const path: string[] = [];
 	let current = node;
-	while (t.isMemberExpression(current) && !current.computed && t.isIdentifier(current.property)) {
-		path.unshift(current.property.name);
+	while (t.isMemberExpression(current)) {
+		const name = memberPropertyName(current.property, current.computed === true);
+		if (!name) break;
+		path.unshift(name);
 		current = current.object;
 	}
 	return t.isIdentifier(current) ? { root: current, path } : null;
@@ -2814,6 +2816,20 @@ function isSetterCallStatement(statement: t.Statement, setters: ReadonlySet<stri
 	);
 }
 
+function wrapFlushBody(
+	statement: t.Statement,
+	setters: ReadonlySet<string>,
+	context: EmitContext,
+): t.Statement {
+	if (t.isBlockStatement(statement)) {
+		statement.body = flushStatements(statement.body, setters, context);
+		return statement;
+	}
+	const wrapped = t.blockStatement([statement]);
+	wrapped.body = flushStatements(wrapped.body, setters, context);
+	return wrapped;
+}
+
 function flushNestedStatement(
 	statement: t.Statement,
 	setters: ReadonlySet<string>,
@@ -2824,15 +2840,16 @@ function flushNestedStatement(
 			statement.body = flushStatements(statement.body, setters, context);
 			return;
 		case 'IfStatement':
-			flushNestedStatement(statement.consequent, setters, context);
-			if (statement.alternate) flushNestedStatement(statement.alternate, setters, context);
+			statement.consequent = wrapFlushBody(statement.consequent, setters, context);
+			if (statement.alternate)
+				statement.alternate = wrapFlushBody(statement.alternate, setters, context);
 			return;
 		case 'WhileStatement':
 		case 'DoWhileStatement':
 		case 'ForStatement':
 		case 'ForInStatement':
 		case 'ForOfStatement':
-			flushNestedStatement(statement.body, setters, context);
+			statement.body = wrapFlushBody(statement.body, setters, context);
 			return;
 		case 'TryStatement':
 			flushNestedStatement(statement.block, setters, context);
@@ -3507,41 +3524,65 @@ function compositionTemplateNode(node: TemplateNode, context: CompositionContext
 				entry.localName === parentHandle.handleName,
 		);
 		const propName = prop?.sourceName ?? parentHandle.handleName.split('.').at(-1)!;
-		const callbackBody: t.Statement[] = [
-			t.expressionStatement(
-				t.callExpression(member(t.identifier(context.propsName), propName), [
-					t.identifier('node'),
-				]),
-			),
-			t.expressionStatement(
-				t.callExpression(api(context.base, 'onCleanup'), [
-					t.arrowFunctionExpression(
-						[],
-						t.callExpression(member(t.identifier(context.propsName), propName), [
-							t.identifier('undefined'),
-						]),
-					),
-				]),
-			),
-		];
-		if (attach)
-			callbackBody.push(
+		const forwardCall = t.expressionStatement(
+			t.callExpression(member(t.identifier(context.propsName), propName), [
+				t.identifier('node'),
+			]),
+		);
+		if (context.base.generation === 2) {
+			const forwardCallback = t.arrowFunctionExpression(
+				[t.identifier('node')],
+				t.blockStatement([forwardCall]),
+			);
+			attributes.push(jsxAttribute('ref', generation2RefValue(attach, forwardCallback)));
+		} else {
+			const callbackBody: t.Statement[] = [
+				forwardCall,
 				t.expressionStatement(
-					t.callExpression(t.identifier(attach), [t.identifier('node')]),
+					t.callExpression(api(context.base, 'onCleanup'), [
+						t.arrowFunctionExpression(
+							[],
+							t.callExpression(member(t.identifier(context.propsName), propName), [
+								t.identifier('undefined'),
+							]),
+						),
+					]),
+				),
+			];
+			if (attach)
+				callbackBody.push(
+					t.expressionStatement(
+						t.callExpression(t.identifier(attach), [t.identifier('node')]),
+					),
+				);
+			attributes.push(
+				jsxAttribute(
+					'ref',
+					t.arrowFunctionExpression([t.identifier('node')], t.blockStatement(callbackBody)),
 				),
 			);
-		const callback = t.arrowFunctionExpression(
-			[t.identifier('node')],
-			t.blockStatement(callbackBody),
-		);
-		attributes.push(jsxAttribute('ref', callback));
+		}
 	} else {
 		const handle = context.ir.records.elementHandleBindings.find(
 			(binding) =>
 				binding.componentId === context.component.id && binding.hostNodeId === node.id,
 		);
 		if (handle && !handle.handleName.includes('.')) {
-			if (attach)
+			if (context.base.generation === 2 && attach) {
+				const handleCallback = t.arrowFunctionExpression(
+					[t.identifier('node')],
+					t.blockStatement([
+						t.expressionStatement(
+							t.assignmentExpression(
+								'=',
+								t.identifier(handle.handleName),
+								t.identifier('node'),
+							),
+						),
+					]),
+				);
+				attributes.push(jsxAttribute('ref', generation2RefValue(attach, handleCallback)));
+			} else if (attach)
 				attributes.push(
 					jsxAttribute(
 						'ref',
@@ -3563,7 +3604,15 @@ function compositionTemplateNode(node: TemplateNode, context: CompositionContext
 					),
 				);
 			else attributes.push(jsxAttribute('ref', t.identifier(handle.handleName)));
-		} else if (attach) attributes.push(jsxAttribute('ref', t.identifier(attach)));
+		} else if (attach)
+			attributes.push(
+				jsxAttribute(
+					'ref',
+					context.base.generation === 2
+						? t.callExpression(t.identifier(attach), [])
+						: t.identifier(attach),
+				),
+			);
 	}
 	for (const eventId of node.eventIds) {
 		const event = context.base.events.get(eventId);
@@ -3826,6 +3875,14 @@ function emitSharedFamily(
 	return output;
 }
 
+function generation2RefValue(attach: string | undefined, extra?: t.Expression): t.Expression {
+	const factory = attach ? t.callExpression(t.identifier(attach), []) : undefined;
+	if (extra && factory) return t.arrayExpression([extra, factory]);
+	if (factory) return factory;
+	if (extra) return extra;
+	throw new Error('Generation-2 ref requires an attach factory or a handle callback');
+}
+
 function emitGeneration2Attach(
 	componentBase: EmitContext,
 	componentNames: NameAllocator,
@@ -3841,47 +3898,41 @@ function emitGeneration2Attach(
 	}[],
 ): t.Statement[] {
 	const hostName = componentNames.claim(`${directiveName}Node`);
-	const snapshotName = componentNames.claim('attachSnapshot');
-	const seenCaptures = new Set<string>();
-	const computeProperties = [
-		t.objectProperty(
-			t.identifier('node'),
-			t.callExpression(t.identifier(hostName), []),
-			false,
-			false,
-		),
-	];
-	for (const plan of plans) {
-		for (const capture of plan.captures) {
-			if (seenCaptures.has(capture.name)) continue;
-			seenCaptures.add(capture.name);
-			computeProperties.push(
-				t.objectProperty(t.identifier(capture.name), capture.current, false, false),
-			);
-		}
-	}
-	const applyBody: t.Statement[] = [
+	const setterName = componentNames.claim(`set${directiveName[0]!.toUpperCase()}${directiveName.slice(1)}`);
+	const factoryBody: t.Statement[] = [
 		t.variableDeclaration('const', [
-			t.variableDeclarator(t.identifier('node'), member(t.identifier(snapshotName), 'node')),
+			t.variableDeclarator(
+				t.arrayPattern([t.identifier(hostName), t.identifier(setterName)]),
+				t.callExpression(api(componentBase, 'createSignal'), []),
+			),
 		]),
-		t.ifStatement(
-			t.binaryExpression('==', t.identifier('node'), t.nullLiteral()),
-			t.blockStatement([t.returnStatement(null)]),
-		),
 	];
 	for (const plan of plans) {
+		const snapshotName = componentNames.claim('attachSnapshot');
+		const computeProperties = [
+			t.objectProperty(
+				t.identifier('node'),
+				t.callExpression(t.identifier(hostName), []),
+				false,
+				false,
+			),
+			...plan.captures.map((capture) =>
+				t.objectProperty(t.identifier(capture.name), capture.current, false, false),
+			),
+		];
+		const applyBody: t.Statement[] = [
+			t.variableDeclaration('const', [
+				t.variableDeclarator(
+					t.identifier('node'),
+					member(t.identifier(snapshotName), 'node'),
+				),
+			]),
+			t.ifStatement(
+				t.binaryExpression('==', t.identifier('node'), t.nullLiteral()),
+				t.blockStatement([t.returnStatement(null)]),
+			),
+		];
 		for (const capture of plan.captures) {
-			if (
-				applyBody.some(
-					(statement) =>
-						t.isVariableDeclaration(statement) &&
-						statement.declarations.some(
-							(declaration: { id?: { name?: string } }) =>
-								declaration.id?.name === capture.name,
-						),
-				)
-			)
-				continue;
 			applyBody.push(
 				t.variableDeclaration('const', [
 					t.variableDeclarator(
@@ -3891,55 +3942,57 @@ function emitGeneration2Attach(
 				]),
 			);
 		}
-	}
-	const cleanupBody: t.Statement[] = [];
-	for (const plan of [...plans].reverse()) {
-		if (!plan.behavior.returnsCleanup) continue;
-		cleanupBody.push(
-			t.ifStatement(
-				t.binaryExpression(
-					'===',
-					t.unaryExpression('typeof', t.identifier(plan.cleanupName)),
-					t.stringLiteral('function'),
-				),
-				t.blockStatement([
-					t.expressionStatement(t.callExpression(t.identifier(plan.cleanupName), [])),
-				]),
-			),
-		);
-	}
-	for (const plan of plans) {
-		if (plan.behavior.returnsCleanup)
+		if (plan.behavior.returnsCleanup) {
 			applyBody.push(
 				t.variableDeclaration('const', [
 					t.variableDeclarator(t.identifier(plan.cleanupName), plan.call),
 				]),
+				t.returnStatement(
+					t.arrowFunctionExpression(
+						[],
+						t.blockStatement([
+							t.ifStatement(
+								t.binaryExpression(
+									'===',
+									t.unaryExpression('typeof', t.identifier(plan.cleanupName)),
+									t.stringLiteral('function'),
+								),
+								t.blockStatement([
+									t.expressionStatement(
+										t.callExpression(t.identifier(plan.cleanupName), []),
+									),
+								]),
+							),
+						]),
+					),
+				),
 			);
-		else applyBody.push(t.expressionStatement(plan.call));
-	}
-	if (cleanupBody.length)
-		applyBody.push(
-			t.returnStatement(t.arrowFunctionExpression([], t.blockStatement(cleanupBody))),
+		} else applyBody.push(t.expressionStatement(plan.call));
+		factoryBody.push(
+			t.expressionStatement(
+				t.callExpression(api(componentBase, 'createEffect'), [
+					t.arrowFunctionExpression(
+						[],
+						t.blockStatement([
+							t.returnStatement(t.objectExpression(computeProperties)),
+						]),
+					),
+					t.arrowFunctionExpression(
+						[t.identifier(snapshotName)],
+						t.blockStatement(applyBody),
+					),
+				]),
+			),
 		);
+	}
+	factoryBody.push(t.returnStatement(t.identifier(setterName)));
 	return [
 		t.variableDeclaration('const', [
 			t.variableDeclarator(
-				t.arrayPattern([t.identifier(hostName), t.identifier(directiveName)]),
-				t.callExpression(api(componentBase, 'createSignal'), []),
+				t.identifier(directiveName),
+				t.arrowFunctionExpression([], t.blockStatement(factoryBody)),
 			),
 		]),
-		t.expressionStatement(
-			t.callExpression(api(componentBase, 'createEffect'), [
-				t.arrowFunctionExpression(
-					[],
-					t.blockStatement([t.returnStatement(t.objectExpression(computeProperties))]),
-				),
-				t.arrowFunctionExpression(
-					[t.identifier(snapshotName)],
-					t.blockStatement(applyBody),
-				),
-			]),
-		),
 	];
 }
 
