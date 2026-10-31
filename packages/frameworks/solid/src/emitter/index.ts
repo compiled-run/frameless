@@ -13,7 +13,14 @@ import {
 	type SharedDefinition,
 	type TemplateNode,
 } from '@frameless/compiler';
+import {
+	SOLID_API_GENERATIONS,
+	type SolidApiGeneration,
+	type SolidEmitOptions,
+} from '../api-generation.ts';
 import * as t from './estree.ts';
+
+export type { SolidApiGeneration, SolidEmitOptions };
 
 const LEGACY_STRING_FIELDS = new Set(['functionSource', 'handlerSources', 'valueSource']);
 
@@ -27,17 +34,21 @@ type ApiName =
 	| 'untrack'
 	| 'For'
 	| 'Show'
+	| 'flush'
 	| 'createContext'
 	| 'useContext'
 	| 'createEffect'
 	| 'onMount'
+	| 'onSettled'
 	| 'onCleanup';
 type EmitContext = {
 	readonly api: ReadonlyMap<ApiName, string>;
 	readonly bindingsById: ReadonlyMap<string, EnrichedGraphBinding>;
 	readonly computedByName: ReadonlyMap<string, EnrichedGraphBinding>;
 	readonly events: ReadonlyMap<string, EnrichedEventRecord>;
+	readonly generation: SolidApiGeneration;
 	readonly imports: Set<ApiName>;
+	readonly itemAccessors: ReadonlySet<string>;
 	readonly lexicalNames: ReadonlySet<string>;
 	readonly names: NameAllocator;
 	readonly persistenceByGraph: ReadonlyMap<string, FramelessPersistenceRecord>;
@@ -49,6 +60,103 @@ type EmitContext = {
 	readonly statesByName: ReadonlyMap<string, StateBinding>;
 	readonly storeKeys: ReadonlyMap<string, string>;
 };
+
+function resolveGeneration(options?: SolidEmitOptions): SolidApiGeneration {
+	const generation = options?.generation ?? SOLID_API_GENERATIONS.defaultGeneration;
+	if (generation !== 1 && generation !== 2) {
+		throw new Error(`Unsupported Solid API generation: ${String(generation)}`);
+	}
+	return generation;
+}
+
+function claimApiNames(
+	allocator: NameAllocator,
+	generation: SolidApiGeneration,
+	surface: 'component' | 'composition',
+): Map<ApiName, string> {
+	const names: ApiName[] = [
+		'createSignal',
+		'createStore',
+		'reconcile',
+		'untrack',
+		'For',
+		'Show',
+		...(generation === 1 ? (['produce'] as const) : (['flush'] as const)),
+		...(surface === 'composition'
+			? generation === 2
+				? ([
+						'createContext',
+						'useContext',
+						'createEffect',
+						'onSettled',
+						'onCleanup',
+					] as const)
+				: (['createContext', 'useContext', 'createEffect', 'onMount', 'onCleanup'] as const)
+			: []),
+	];
+	const apiNames = new Map<ApiName, string>();
+	for (const name of names) apiNames.set(name, allocator.claim(name));
+	return apiNames;
+}
+
+function addGenerationImports(
+	generation: SolidApiGeneration,
+	addImport: (source: string, candidates: ApiName[]) => void,
+): void {
+	if (generation === 2) {
+		addImport('solid-js', [
+			'createSignal',
+			'untrack',
+			'For',
+			'Show',
+			'createStore',
+			'reconcile',
+			'flush',
+			'createContext',
+			'useContext',
+			'createEffect',
+			'onSettled',
+			'onCleanup',
+		]);
+		return;
+	}
+	addImport('solid-js', [
+		'createSignal',
+		'untrack',
+		'For',
+		'Show',
+		'createContext',
+		'useContext',
+		'createEffect',
+		'onMount',
+		'onCleanup',
+	]);
+	addImport('solid-js/store', ['createStore', 'produce', 'reconcile']);
+}
+
+function forKeyedAttribute(
+	node: Extract<TemplateNode, { kind: 'keyed-repeat' }>,
+): t.JSXAttribute | null {
+	const path = itemMemberPath(node.key.expression, node.item);
+	if (!path) return null;
+	return jsxAttribute(
+		'keyed',
+		t.arrowFunctionExpression(
+			[t.identifier(node.item)],
+			pathMember(t.identifier(node.item), path),
+		),
+	);
+}
+
+function requireKeyedAttribute(
+	node: Extract<TemplateNode, { kind: 'keyed-repeat' }>,
+): t.JSXAttribute {
+	const keyed = forKeyedAttribute(node);
+	if (keyed) return keyed;
+	throw new Error(
+		"Generation-2 keyed For requires an item-member key (including computed string keys such as row['id'])",
+	);
+}
 type RenderedNode = t.JSXElement | t.JSXExpressionContainer | t.JSXFragment | t.JSXText;
 
 function walk(value: unknown, visit: (record: RecordLike) => void): void {
@@ -83,15 +191,26 @@ function expression(node: SerializableAstNode | null | undefined): t.Expression 
 	return converted;
 }
 
+function memberPropertyName(property: RecordLike | undefined, computed: boolean): string | null {
+	if (!property) return null;
+	if (!computed && property.type === 'Identifier' && typeof property.name === 'string')
+		return property.name;
+	if (
+		computed &&
+		(property.type === 'Literal' || property.type === 'StringLiteral') &&
+		typeof property.value === 'string'
+	)
+		return property.value;
+	return null;
+}
+
 function itemMemberPath(node: SerializableAstNode, item: string): string[] | null {
 	const path: string[] = [];
 	let current: RecordLike | undefined = node as RecordLike;
-	while (
-		current?.type === 'MemberExpression' &&
-		current.computed === false &&
-		current.property?.type === 'Identifier'
-	) {
-		path.unshift(current.property.name);
+	while (current?.type === 'MemberExpression') {
+		const name = memberPropertyName(current.property, current.computed === true);
+		if (!name) break;
+		path.unshift(name);
 		current = current.object;
 	}
 	return current?.type === 'Identifier' && current.name === item && path.length ? path : null;
@@ -108,8 +227,10 @@ function containsElement(node: TemplateNode): boolean {
 function memberPath(node: t.Node): { root: t.Identifier; path: string[] } | null {
 	const path: string[] = [];
 	let current = node;
-	while (t.isMemberExpression(current) && !current.computed && t.isIdentifier(current.property)) {
-		path.unshift(current.property.name);
+	while (t.isMemberExpression(current)) {
+		const name = memberPropertyName(current.property, current.computed === true);
+		if (!name) break;
+		path.unshift(name);
 		current = current.object;
 	}
 	return t.isIdentifier(current) ? { root: current, path } : null;
@@ -409,11 +530,7 @@ function validateSyncPolicy(
 				throw new Error(`SyncPolicy ${eventId} has unsupported sync shape`);
 			validateCondition(condition.condition);
 		} else if (type === 'graph-truthy') {
-			exactKeys(
-				condition,
-				['type', 'graphNodeId', 'path'],
-				`SyncPolicyCondition ${eventId}`,
-			);
+			exactKeys(condition, ['type', 'graphNodeId', 'path'], `SyncPolicyCondition ${eventId}`);
 			if (typeof condition.graphNodeId !== 'string' || !bindingIds.has(condition.graphNodeId))
 				throw new Error(
 					`SyncPolicyCondition ${eventId} has dangling graph record id: ${String(condition.graphNodeId)}`,
@@ -2190,7 +2307,21 @@ function rewriteExpressionAst(result: t.Expression, context: EmitContext): t.Exp
 			const writeTarget =
 				(parent?.type === 'AssignmentExpression' && parent.left === node) ||
 				(parent?.type === 'UpdateExpression' && parent.argument === node);
-			if (writeTarget || context.lexicalNames.has(node.name)) continue;
+			if (writeTarget) continue;
+			if (parent?.type === 'CallExpression' && parent.callee === node) {
+				if (
+					context.itemAccessors.has(node.name) ||
+					context.statesByName.get(node.name)?.storage === 'signal' ||
+					context.computedByName.has(node.name)
+				)
+					continue;
+			}
+			if (context.itemAccessors.has(node.name)) {
+				if (parent?.type === 'Property' && parent.shorthand) parent.shorthand = false;
+				replace(node, t.callExpression(t.identifier(node.name), []));
+				continue;
+			}
+			if (context.lexicalNames.has(node.name)) continue;
 			const prop = context.propsByLocal.get(node.name);
 			const state = context.statesByName.get(node.name);
 			const computed = context.computedByName.get(node.name);
@@ -2231,14 +2362,27 @@ function rewriteExpressionAst(result: t.Expression, context: EmitContext): t.Exp
 				let value = node.right;
 				if (state.storage === 'store') {
 					const key = context.storeKeys.get(state.id);
-					const options = key
-						? [
-								t.objectExpression([
-									t.objectProperty(t.identifier('key'), t.stringLiteral(key)),
-								]),
-							]
-						: [];
-					value = t.callExpression(api(context, 'reconcile'), [value, ...options]);
+					if (context.generation === 2) {
+						const reconcileArgs = key == null ? [value] : [value, t.stringLiteral(key)];
+						const applicator = t.callExpression(
+							api(context, 'reconcile'),
+							reconcileArgs,
+						);
+						const draftName = context.names.claim('storeDraft');
+						value = t.arrowFunctionExpression(
+							[t.identifier(draftName)],
+							t.callExpression(applicator, [t.identifier(draftName)]),
+						);
+					} else {
+						const options = key
+							? [
+									t.objectExpression([
+										t.objectProperty(t.identifier('key'), t.stringLiteral(key)),
+									]),
+								]
+							: [];
+						value = t.callExpression(api(context, 'reconcile'), [value, ...options]);
+					}
 				}
 				replace(
 					node,
@@ -2317,18 +2461,25 @@ function repeatNode(
 ): t.JSXElement {
 	const lexicalNames = new Set(context.lexicalNames).add(node.item);
 	if (node.index) lexicalNames.add(node.index);
-	const rowContext = { ...context, lexicalNames };
+	const rowContext = {
+		...context,
+		lexicalNames,
+		itemAccessors:
+			context.generation === 2
+				? new Set(context.itemAccessors).add(node.item)
+				: context.itemAccessors,
+	};
 	const callback = t.arrowFunctionExpression(
 		[t.identifier(node.item)],
 		expressionFromNodes(node.row, rowContext),
 	);
 	const name = t.jsxIdentifier(api(context, 'For').name);
+	const attributes = [
+		jsxAttribute('each', rewriteExpression(node.collection.expression, context)),
+	];
+	if (context.generation === 2) attributes.push(requireKeyedAttribute(node));
 	return t.jsxElement(
-		t.jsxOpeningElement(
-			name,
-			[jsxAttribute('each', rewriteExpression(node.collection.expression, context))],
-			false,
-		),
+		t.jsxOpeningElement(name, attributes, false),
 		t.jsxClosingElement(t.cloneNode(name)),
 		[t.jsxExpressionContainer(callback)],
 		false,
@@ -2357,7 +2508,7 @@ function templateNode(node: TemplateNode, context: EmitContext): RenderedNode {
 	for (const binding of node.dynamicBindings) {
 		const value = rewriteExpression(binding.expression, context);
 		attributes.push(jsxAttribute(binding.name, value));
-		if (binding.kind === 'property' && binding.name === 'value')
+		if (context.generation === 1 && binding.kind === 'property' && binding.name === 'value')
 			attributes.push(jsxAttribute('attr:value', t.cloneNode(value, true)));
 	}
 	for (const eventId of node.eventIds) {
@@ -2518,10 +2669,12 @@ function lowerStoreMemberWrites(
 			[t.cloneNode(draft)],
 			t.blockStatement([aliasDeclaration, t.cloneNode(assignment, true)]),
 		);
+		const setterArgument =
+			context.generation === 2
+				? callback
+				: t.callExpression(api(context, 'produce'), [callback]);
 		const call = t.expressionStatement(
-			t.callExpression(t.identifier(context.settersById.get(state.id)!), [
-				t.callExpression(api(context, 'produce'), [callback]),
-			]),
+			t.callExpression(t.identifier(context.settersById.get(state.id)!), [setterArgument]),
 		);
 		const insertion = copyIndex >= 0 ? copyIndex : aliasIndex;
 		replacements.set(insertion, call);
@@ -2566,8 +2719,7 @@ function syncPlan(event: EnrichedEventRecord): SolidSyncPlan | null {
 			`SyncPolicy ${event.id} declares a multi-handler sync policy; the Solid emitter reconciles one branch per event prop`,
 		);
 	const actions = (policy.actions ?? []) as readonly string[];
-	const unconditional =
-		policy.when?.type === 'constant-truthy' && Boolean(policy.when.value);
+	const unconditional = policy.when?.type === 'constant-truthy' && Boolean(policy.when.value);
 	return {
 		actions,
 		renormalize: unconditional && actions.length === 1 && actions[0] === 'preventDefault',
@@ -2651,7 +2803,85 @@ function normalizeHandler(
 		);
 	}
 	appendPersistenceWrites(rewritten, context);
+	insertFlushAfterSetters(rewritten, context);
 	return rewritten;
+}
+
+function isSetterCallStatement(statement: t.Statement, setters: ReadonlySet<string>): boolean {
+	return (
+		t.isExpressionStatement(statement) &&
+		t.isCallExpression(statement.expression) &&
+		t.isIdentifier(statement.expression.callee) &&
+		setters.has(statement.expression.callee.name)
+	);
+}
+
+function wrapFlushBody(
+	statement: t.Statement,
+	setters: ReadonlySet<string>,
+	context: EmitContext,
+): t.Statement {
+	if (t.isBlockStatement(statement)) {
+		statement.body = flushStatements(statement.body, setters, context);
+		return statement;
+	}
+	const wrapped = t.blockStatement([statement]);
+	wrapped.body = flushStatements(wrapped.body, setters, context);
+	return wrapped;
+}
+
+function flushNestedStatement(
+	statement: t.Statement,
+	setters: ReadonlySet<string>,
+	context: EmitContext,
+): void {
+	switch (statement.type) {
+		case 'BlockStatement':
+			statement.body = flushStatements(statement.body, setters, context);
+			return;
+		case 'IfStatement':
+			statement.consequent = wrapFlushBody(statement.consequent, setters, context);
+			if (statement.alternate)
+				statement.alternate = wrapFlushBody(statement.alternate, setters, context);
+			return;
+		case 'WhileStatement':
+		case 'DoWhileStatement':
+		case 'ForStatement':
+		case 'ForInStatement':
+		case 'ForOfStatement':
+			statement.body = wrapFlushBody(statement.body, setters, context);
+			return;
+		case 'TryStatement':
+			flushNestedStatement(statement.block, setters, context);
+			if (statement.handler?.body)
+				flushNestedStatement(statement.handler.body, setters, context);
+			if (statement.finalizer) flushNestedStatement(statement.finalizer, setters, context);
+			return;
+		case 'SwitchStatement':
+			for (const switchCase of statement.cases ?? [])
+				switchCase.consequent = flushStatements(switchCase.consequent, setters, context);
+			return;
+		case 'LabeledStatement':
+			flushNestedStatement(statement.body, setters, context);
+	}
+}
+
+function flushStatements(
+	statements: t.Statement[],
+	setters: ReadonlySet<string>,
+	context: EmitContext,
+): t.Statement[] {
+	return statements.flatMap((statement: t.Statement) => {
+		flushNestedStatement(statement, setters, context);
+		if (!isSetterCallStatement(statement, setters)) return [statement];
+		return [statement, t.expressionStatement(t.callExpression(api(context, 'flush'), []))];
+	});
+}
+
+function insertFlushAfterSetters(fn: t.ArrowFunctionExpression, context: EmitContext): void {
+	if (context.generation !== 2 || !t.isBlockStatement(fn.body)) return;
+	const setters = new Set(context.settersById.values());
+	fn.body.body = flushStatements(fn.body.body, setters, context);
 }
 
 function emitEvent(event: EnrichedEventRecord, context: EmitContext): t.ArrowFunctionExpression {
@@ -2781,9 +3011,7 @@ function typeNode(node: SerializableAstNode, where: string): t.Node {
 				throw new Error(`Solid emitter received a malformed function type in ${where}`);
 			return t.tsFunctionType(
 				parameters.map((parameter) => typeParameter(parameter, where)),
-				t.tsTypeAnnotation(
-					typeNode(returns.typeAnnotation as SerializableAstNode, where),
-				),
+				t.tsTypeAnnotation(typeNode(returns.typeAnnotation as SerializableAstNode, where)),
 			);
 		}
 		default:
@@ -3247,19 +3475,21 @@ function compositionTemplateNode(node: TemplateNode, context: CompositionContext
 	if (node.kind === 'keyed-repeat') {
 		const lexicalNames = new Set(context.base.lexicalNames).add(node.item);
 		if (node.index) lexicalNames.add(node.index);
-		const rowContext = { ...context, base: { ...context.base, lexicalNames } };
+		const itemAccessors =
+			context.base.generation === 2
+				? new Set(context.base.itemAccessors).add(node.item)
+				: context.base.itemAccessors;
+		const rowContext = {
+			...context,
+			base: { ...context.base, lexicalNames, itemAccessors },
+		};
 		const name = t.jsxIdentifier(api(context.base, 'For').name);
+		const attributes = [
+			jsxAttribute('each', rewriteCompositionExpression(node.collection.expression, context)),
+		];
+		if (context.base.generation === 2) attributes.push(requireKeyedAttribute(node));
 		return t.jsxElement(
-			t.jsxOpeningElement(
-				name,
-				[
-					jsxAttribute(
-						'each',
-						rewriteCompositionExpression(node.collection.expression, context),
-					),
-				],
-				false,
-			),
+			t.jsxOpeningElement(name, attributes, false),
 			t.jsxClosingElement(t.cloneNode(name)),
 			[
 				t.jsxExpressionContainer(
@@ -3294,12 +3524,20 @@ function compositionTemplateNode(node: TemplateNode, context: CompositionContext
 				entry.localName === parentHandle.handleName,
 		);
 		const propName = prop?.sourceName ?? parentHandle.handleName.split('.').at(-1)!;
-		const callbackBody: t.Statement[] = [
-				t.expressionStatement(
-					t.callExpression(member(t.identifier(context.propsName), propName), [
-						t.identifier('node'),
-					]),
-				),
+		const forwardCall = t.expressionStatement(
+			t.callExpression(member(t.identifier(context.propsName), propName), [
+				t.identifier('node'),
+			]),
+		);
+		if (context.base.generation === 2) {
+			const forwardCallback = t.arrowFunctionExpression(
+				[t.identifier('node')],
+				t.blockStatement([forwardCall]),
+			);
+			attributes.push(jsxAttribute('ref', generation2RefValue(attach, forwardCallback)));
+		} else {
+			const callbackBody: t.Statement[] = [
+				forwardCall,
 				t.expressionStatement(
 					t.callExpression(api(context.base, 'onCleanup'), [
 						t.arrowFunctionExpression(
@@ -3311,24 +3549,40 @@ function compositionTemplateNode(node: TemplateNode, context: CompositionContext
 					]),
 				),
 			];
-		if (attach)
-			callbackBody.push(
-				t.expressionStatement(
-					t.callExpression(t.identifier(attach), [t.identifier('node')]),
+			if (attach)
+				callbackBody.push(
+					t.expressionStatement(
+						t.callExpression(t.identifier(attach), [t.identifier('node')]),
+					),
+				);
+			attributes.push(
+				jsxAttribute(
+					'ref',
+					t.arrowFunctionExpression([t.identifier('node')], t.blockStatement(callbackBody)),
 				),
 			);
-		const callback = t.arrowFunctionExpression(
-			[t.identifier('node')],
-			t.blockStatement(callbackBody),
-		);
-		attributes.push(jsxAttribute('ref', callback));
+		}
 	} else {
 		const handle = context.ir.records.elementHandleBindings.find(
 			(binding) =>
 				binding.componentId === context.component.id && binding.hostNodeId === node.id,
 		);
 		if (handle && !handle.handleName.includes('.')) {
-			if (attach)
+			if (context.base.generation === 2 && attach) {
+				const handleCallback = t.arrowFunctionExpression(
+					[t.identifier('node')],
+					t.blockStatement([
+						t.expressionStatement(
+							t.assignmentExpression(
+								'=',
+								t.identifier(handle.handleName),
+								t.identifier('node'),
+							),
+						),
+					]),
+				);
+				attributes.push(jsxAttribute('ref', generation2RefValue(attach, handleCallback)));
+			} else if (attach)
 				attributes.push(
 					jsxAttribute(
 						'ref',
@@ -3350,7 +3604,15 @@ function compositionTemplateNode(node: TemplateNode, context: CompositionContext
 					),
 				);
 			else attributes.push(jsxAttribute('ref', t.identifier(handle.handleName)));
-		} else if (attach) attributes.push(jsxAttribute('ref', t.identifier(attach)));
+		} else if (attach)
+			attributes.push(
+				jsxAttribute(
+					'ref',
+					context.base.generation === 2
+						? t.callExpression(t.identifier(attach), [])
+						: t.identifier(attach),
+				),
+			);
 	}
 	for (const eventId of node.eventIds) {
 		const event = context.base.events.get(eventId);
@@ -3403,6 +3665,7 @@ function sharedMethodArrow(
 	if (!t.isArrowFunctionExpression(rewritten))
 		throw new Error(`SharedDefinitionMethod ${method.name} lost its action shape`);
 	appendPersistenceWrites(rewritten, context);
+	insertFlushAfterSetters(rewritten, context);
 	return rewritten;
 }
 
@@ -3612,6 +3875,127 @@ function emitSharedFamily(
 	return output;
 }
 
+function generation2RefValue(attach: string | undefined, extra?: t.Expression): t.Expression {
+	const factory = attach ? t.callExpression(t.identifier(attach), []) : undefined;
+	if (extra && factory) return t.arrayExpression([extra, factory]);
+	if (factory) return factory;
+	if (extra) return extra;
+	throw new Error('Generation-2 ref requires an attach factory or a handle callback');
+}
+
+function emitGeneration2Attach(
+	componentBase: EmitContext,
+	componentNames: NameAllocator,
+	directiveName: string,
+	plans: readonly {
+		readonly behavior: { readonly returnsCleanup: boolean };
+		readonly call: t.Expression;
+		readonly captures: readonly {
+			readonly current: t.Expression;
+			readonly name: string;
+		}[];
+		readonly cleanupName: string;
+	}[],
+): t.Statement[] {
+	const hostName = componentNames.claim(`${directiveName}Node`);
+	const setterName = componentNames.claim(`set${directiveName[0]!.toUpperCase()}${directiveName.slice(1)}`);
+	const factoryBody: t.Statement[] = [
+		t.variableDeclaration('const', [
+			t.variableDeclarator(
+				t.arrayPattern([t.identifier(hostName), t.identifier(setterName)]),
+				t.callExpression(api(componentBase, 'createSignal'), []),
+			),
+		]),
+	];
+	for (const plan of plans) {
+		const snapshotName = componentNames.claim('attachSnapshot');
+		const computeProperties = [
+			t.objectProperty(
+				t.identifier('node'),
+				t.callExpression(t.identifier(hostName), []),
+				false,
+				false,
+			),
+			...plan.captures.map((capture) =>
+				t.objectProperty(t.identifier(capture.name), capture.current, false, false),
+			),
+		];
+		const applyBody: t.Statement[] = [
+			t.variableDeclaration('const', [
+				t.variableDeclarator(
+					t.identifier('node'),
+					member(t.identifier(snapshotName), 'node'),
+				),
+			]),
+			t.ifStatement(
+				t.binaryExpression('==', t.identifier('node'), t.nullLiteral()),
+				t.blockStatement([t.returnStatement(null)]),
+			),
+		];
+		for (const capture of plan.captures) {
+			applyBody.push(
+				t.variableDeclaration('const', [
+					t.variableDeclarator(
+						t.identifier(capture.name),
+						member(t.identifier(snapshotName), capture.name),
+					),
+				]),
+			);
+		}
+		if (plan.behavior.returnsCleanup) {
+			applyBody.push(
+				t.variableDeclaration('const', [
+					t.variableDeclarator(t.identifier(plan.cleanupName), plan.call),
+				]),
+				t.returnStatement(
+					t.arrowFunctionExpression(
+						[],
+						t.blockStatement([
+							t.ifStatement(
+								t.binaryExpression(
+									'===',
+									t.unaryExpression('typeof', t.identifier(plan.cleanupName)),
+									t.stringLiteral('function'),
+								),
+								t.blockStatement([
+									t.expressionStatement(
+										t.callExpression(t.identifier(plan.cleanupName), []),
+									),
+								]),
+							),
+						]),
+					),
+				),
+			);
+		} else applyBody.push(t.expressionStatement(plan.call));
+		factoryBody.push(
+			t.expressionStatement(
+				t.callExpression(api(componentBase, 'createEffect'), [
+					t.arrowFunctionExpression(
+						[],
+						t.blockStatement([
+							t.returnStatement(t.objectExpression(computeProperties)),
+						]),
+					),
+					t.arrowFunctionExpression(
+						[t.identifier(snapshotName)],
+						t.blockStatement(applyBody),
+					),
+				]),
+			),
+		);
+	}
+	factoryBody.push(t.returnStatement(t.identifier(setterName)));
+	return [
+		t.variableDeclaration('const', [
+			t.variableDeclarator(
+				t.identifier(directiveName),
+				t.arrowFunctionExpression([], t.blockStatement(factoryBody)),
+			),
+		]),
+	];
+}
+
 function compositionComponent(
 	ir: EnrichedIR,
 	component: EnrichedComponent,
@@ -3807,6 +4191,12 @@ function compositionComponent(
 					: null,
 				cleanupName: cleanupNames[index]!,
 			});
+		}
+		if (componentBase.generation === 2) {
+			body.push(
+				...emitGeneration2Attach(componentBase, componentNames, directiveName, plans),
+			);
+			continue;
 		}
 		for (const plan of plans) {
 			for (const capture of plan.captures)
@@ -4009,45 +4399,25 @@ function compositionComponent(
 	const declaration = t.functionDeclaration(
 		t.identifier(component.name),
 		component.props.entries.length > 0 || forwardsRef
-			? [
-					typedPropsParameter(
-						component,
-						propsName,
-						body,
-						forwardsRef ? [{ key: 'ref' }] : [],
-					),
-				]
+			? [typedPropsParameter(component, propsName, body, forwardsRef ? [{ key: 'ref' }] : [])]
 			: [],
 		t.blockStatement(body),
 	);
 	return exportedNames.has(component.name) ? t.exportNamedDeclaration(declaration) : declaration;
 }
 
-function emitComposition(ir: EnrichedIR): string {
+function emitComposition(ir: EnrichedIR, generation: SolidApiGeneration): string {
 	const allocator = new NameAllocator(compositionAuthoredNames(ir));
-	const apiNames = new Map<ApiName, string>();
-	for (const name of [
-		'createSignal',
-		'createStore',
-		'produce',
-		'reconcile',
-		'untrack',
-		'For',
-		'Show',
-		'createContext',
-		'useContext',
-		'createEffect',
-		'onMount',
-		'onCleanup',
-	] as const)
-		apiNames.set(name, allocator.claim(name));
+	const apiNames = claimApiNames(allocator, generation, 'composition');
 	const persistenceWrites = { emitted: false };
 	const base: EmitContext = {
 		api: apiNames,
 		bindingsById: new Map(),
 		computedByName: new Map(),
 		events: new Map(ir.records.events.map((event) => [event.id, event])),
+		generation,
 		imports: new Set(),
+		itemAccessors: new Set(),
 		lexicalNames: new Set(),
 		names: allocator,
 		persistenceByGraph: new Map(
@@ -4068,9 +4438,7 @@ function emitComposition(ir: EnrichedIR): string {
 			context: allocator.claim(withGeneratedSuffix(stem, 'Context')),
 			provider: allocator.claim(withGeneratedSuffix(stem, 'Provider')),
 			createShared: allocator.claim(`create${withGeneratedSuffix(stem, 'Shared')}`),
-			moduleShared: allocator.claim(
-				lowercaseFirst(withGeneratedSuffix(stem, 'Shared')),
-			),
+			moduleShared: allocator.claim(lowercaseFirst(withGeneratedSuffix(stem, 'Shared'))),
 		});
 	}
 	const declarations: t.Statement[] = [];
@@ -4120,18 +4488,7 @@ function emitComposition(ir: EnrichedIR): string {
 				),
 			);
 	};
-	addImport('solid-js', [
-		'createSignal',
-		'untrack',
-		'For',
-		'Show',
-		'createContext',
-		'useContext',
-		'createEffect',
-		'onMount',
-		'onCleanup',
-	]);
-	addImport('solid-js/store', ['createStore', 'produce', 'reconcile']);
+	addGenerationImports(generation, addImport);
 	const programBody = [...imports, ...declarations];
 	if (persistenceWrites.emitted) {
 		let lastImport = -1;
@@ -4150,24 +4507,15 @@ function emitComposition(ir: EnrichedIR): string {
 	return source;
 }
 
-/** Emit one Solid 1.x-compatible .tsx module from frameless-enriched-ir/2. */
-export function emit(ir: EnrichedIR): string {
+/** Emit one Solid module from frameless-enriched-ir/2. Defaults to generation 1. */
+export function emit(ir: EnrichedIR, options?: SolidEmitOptions): string {
 	validateEnrichedIr(ir);
-	if (hasComposition(ir)) return emitComposition(ir);
+	const generation = resolveGeneration(options);
+	if (hasComposition(ir)) return emitComposition(ir, generation);
 	const component = ir.components[0]!;
 	const authored = collectAuthoredNames(ir);
 	const allocator = new NameAllocator(authored);
-	const apiNames = new Map<ApiName, string>();
-	for (const name of [
-		'createSignal',
-		'createStore',
-		'produce',
-		'reconcile',
-		'untrack',
-		'For',
-		'Show',
-	] as const)
-		apiNames.set(name, allocator.claim(name));
+	const apiNames = claimApiNames(allocator, generation, 'component');
 	const visible = referencedGraphIds(component, ir.records);
 	const storeKeys = collectStoreKeys(component);
 	const statesById = new Map<string, StateBinding>();
@@ -4206,7 +4554,9 @@ export function emit(ir: EnrichedIR): string {
 				.map((binding) => [binding.name, binding]),
 		),
 		events: new Map(ir.records.events.map((event) => [event.id, event])),
+		generation,
 		imports: new Set(),
+		itemAccessors: new Set(),
 		lexicalNames: new Set(),
 		names: allocator,
 		persistenceByGraph: new Map(
@@ -4221,8 +4571,6 @@ export function emit(ir: EnrichedIR): string {
 		storeKeys,
 	};
 	const exported = componentFunction(ir, component, context);
-	const solidNames: ApiName[] = ['createSignal', 'untrack', 'For', 'Show'];
-	const storeNames: ApiName[] = ['createStore', 'produce', 'reconcile'];
 	const declarations: t.Statement[] = [];
 	const addImport = (source: string, candidates: ApiName[]): void => {
 		const names = candidates.filter((name) => context.imports.has(name));
@@ -4236,8 +4584,7 @@ export function emit(ir: EnrichedIR): string {
 			),
 		);
 	};
-	addImport('solid-js', solidNames);
-	addImport('solid-js/store', storeNames);
+	addGenerationImports(generation, addImport);
 	if (persistenceWrites.emitted) declarations.push(persistenceHelperDeclaration());
 	declarations.push(exported);
 	const source = `// @generated by @frameless/solid; do not edit.\n${printTopLevel(t.program(declarations))}\n`;
