@@ -1,3 +1,5 @@
+export { SOLID_API_GENERATIONS } from './api-generation.ts';
+export type { SolidApiGeneration, SolidEmitOptions } from './api-generation.ts';
 export { createSolidAdapter } from './adapter.ts';
 export { emit, validateEnrichedIr } from './emitter/index.ts';
 export { formatEmitted } from './format-emitted.ts';

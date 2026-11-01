@@ -52,6 +52,9 @@ export const objectProperty = (key: any, value: any, computed = false, shorthand
 	node('Property', { key, value, kind: 'init', method: false, computed, shorthand });
 export const objectExpression = (properties: any[]): any =>
 	node('ObjectExpression', { properties });
+export const arrayExpression = (elements: any[]): any => node('ArrayExpression', { elements });
+export const sequenceExpression = (expressions: any[]): any =>
+	node('SequenceExpression', { expressions });
 export const spreadElement = (argument: any): any => node('SpreadElement', { argument });
 export const memberExpression = (object: any, property: any, computed = false): any =>
 	node('MemberExpression', { object, property, computed, optional: false });
