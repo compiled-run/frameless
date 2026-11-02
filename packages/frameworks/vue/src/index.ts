@@ -1,3 +1,4 @@
+export { VUE_API_GENERATION } from './api-generation.ts';
 export { COMPILE_MODES, compileDiagnostics, emit, validateEnrichedIr } from './emitter/index.ts';
 export { formatEmitted } from './format-emitted.ts';
 export {
