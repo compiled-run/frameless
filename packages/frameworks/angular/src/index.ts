@@ -1,3 +1,4 @@
+export { ANGULAR_API_GENERATION } from './api-generation.ts';
 export {
 	componentSelector,
 	emit,

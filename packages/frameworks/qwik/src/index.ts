@@ -1,3 +1,4 @@
+export { QWIK_API_GENERATION } from './api-generation.ts';
 export { createQwikAdapter } from './adapter.ts';
 export { emit, validateEnrichedIr } from './emitter/index.ts';
 export { formatEmitted } from './format-emitted.ts';
