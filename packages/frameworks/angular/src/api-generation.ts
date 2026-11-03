@@ -5,7 +5,7 @@
  * AngularJS APIs already live in versionless.
  */
 export const ANGULAR_API_GENERATION = {
-	surveyedAt: '2026-11-02',
+	surveyedAt: '2026-11-03',
 	defaultGeneration: 22,
 	supported: [22],
 	pin: { package: '@angular/compiler', version: '^22.0.8' },

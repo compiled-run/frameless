@@ -20,7 +20,7 @@ the unsupported runner is. A test whose failures cannot be attributed is not a
 test.
 
 **Unblock condition:** a `@qwik.dev/core` release whose `peerDependencies.vitest`
-admits 4.x. As of 2026-11-02, `@qwik.dev/core@latest` is `2.0.0-rc.4` and
+admits 4.x. As of 2026-11-03, `@qwik.dev/core@latest` is `2.0.0-rc.4` and
 `2.0.0-beta.47` (published, not the `beta` dist-tag) both declare
 `vitest: ">=2 <5"`, which would admit this workspace's vitest 4.1.5. The
 executable pin is still `2.0.0-beta.38`, whose peer range does not. The `beta`

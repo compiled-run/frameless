@@ -2322,9 +2322,15 @@ function rewriteExpressionAst(result: t.Expression, context: EmitContext): t.Exp
 				(parent?.type === 'UpdateExpression' && parent.argument === node);
 			if (writeTarget) continue;
 			if (parent?.type === 'CallExpression' && parent.callee === node) {
+				// Zero-arg calls are already accessor reads (`count()`, `todo()`).
+				// A call with arguments is invoking a stored function, so the
+				// identifier still has to become `apply()(2)`.
+				const alreadyAccessorCall = (parent.arguments?.length ?? 0) === 0;
 				if (
-					context.itemAccessors.has(node.name) ||
-					context.statesByName.get(node.name)?.storage === 'signal'
+					alreadyAccessorCall &&
+					(context.itemAccessors.has(node.name) ||
+						context.statesByName.get(node.name)?.storage === 'signal' ||
+						context.computedByName.has(node.name))
 				)
 					continue;
 			}
@@ -2864,7 +2870,20 @@ function flushSetterExpression(
 		return expression;
 	}
 	if (!isSetterCallExpression(expression, setters)) return expression;
-	return t.sequenceExpression([expression, t.callExpression(api(context, 'flush'), [])]);
+	const committed = context.names.claim('committed');
+	return t.callExpression(
+		t.arrowFunctionExpression(
+			[],
+			t.blockStatement([
+				t.variableDeclaration('const', [
+					t.variableDeclarator(t.identifier(committed), expression),
+				]),
+				t.expressionStatement(t.callExpression(api(context, 'flush'), [])),
+				t.returnStatement(t.identifier(committed)),
+			]),
+		),
+		[],
+	);
 }
 
 function wrapFlushBody(
@@ -2891,19 +2910,26 @@ function flushNestedStatement(
 			statement.body = flushStatements(statement.body, setters, context);
 			return;
 		case 'IfStatement':
+			statement.test = flushSetterExpression(statement.test, setters, context);
 			statement.consequent = wrapFlushBody(statement.consequent, setters, context);
 			if (statement.alternate)
 				statement.alternate = wrapFlushBody(statement.alternate, setters, context);
 			return;
 		case 'WhileStatement':
 		case 'DoWhileStatement':
+			statement.test = flushSetterExpression(statement.test, setters, context);
+			statement.body = wrapFlushBody(statement.body, setters, context);
+			return;
 		case 'ForInStatement':
 		case 'ForOfStatement':
+			statement.right = flushSetterExpression(statement.right, setters, context);
 			statement.body = wrapFlushBody(statement.body, setters, context);
 			return;
 		case 'ForStatement':
 			if (statement.init && !t.isVariableDeclaration(statement.init))
 				statement.init = flushSetterExpression(statement.init, setters, context);
+			if (statement.test)
+				statement.test = flushSetterExpression(statement.test, setters, context);
 			if (statement.update)
 				statement.update = flushSetterExpression(statement.update, setters, context);
 			statement.body = wrapFlushBody(statement.body, setters, context);
@@ -2915,6 +2941,11 @@ function flushNestedStatement(
 			if (statement.finalizer) flushNestedStatement(statement.finalizer, setters, context);
 			return;
 		case 'SwitchStatement':
+			statement.discriminant = flushSetterExpression(
+				statement.discriminant,
+				setters,
+				context,
+			);
 			for (const switchCase of statement.cases ?? [])
 				switchCase.consequent = flushStatements(switchCase.consequent, setters, context);
 			return;

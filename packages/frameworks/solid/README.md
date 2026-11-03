@@ -96,15 +96,17 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 The default `emit(ir)` lane is Solid 1.x. The executable browser lane is named exactly
 `solid-1.8.22-fallback` and pins Solid 1.8.22 with `vite-plugin-solid` 2.11.10.
 
-Solid 2 is still RC (`2.0.0-rc.20` as of 2026-11-02). `emit(ir, { generation: 2 })`
+Solid 2 is still RC (`2.0.0-rc.20` as of 2026-11-03). `emit(ir, { generation: 2 })`
 emits that API: `createStore` / `reconcile` from `solid-js`, draft-first store setters
 (no `produce`), `setStore(s => reconcile(next, key)(s))` for structural writes,
 `<For keyed={(row) => row.id}>` with accessor children (including computed
 `row['id']` and `row['user.id']` keys), no `attr:` namespace, and `flush()` after
 signal/store writes — including unbraced loop/conditional bodies, for-loop
-header updates, and setters nested in sequence or conditional expressions —
-so later reads see the committed value. Function-valued computed callees emit
-as `apply()(2)` so the accessor runs before the inner function.
+headers and loop tests, and setters nested in sequence, conditional, or logical
+expressions — so later reads see the committed value. Value-observed setters keep
+their return so control flow such as `(count = 1) && (other = 2)` still runs the
+right-hand side. Function-valued computed and signal callees emit as `apply()(2)`
+so the accessor runs before the inner function.
 Composition attach is a Solid 2 directive factory: one owned
 `createEffect(compute, apply)` per host (every behavior on that host) plus a host
 signal, invoked at the host as `ref={attachHost()}` (or

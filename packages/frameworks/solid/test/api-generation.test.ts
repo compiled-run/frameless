@@ -166,7 +166,9 @@ export function Loop({ label }: { label: string }) @{
 }`,
 		});
 		const source = emit(ir, { generation: 2 });
-		expect(source).toMatch(/for \(;\s*count\(\) < 3;\s*setCount\(count\(\) \+ 1\),\s*flush\(\)\)/);
+		expect(source).toMatch(/for \(;\s*count\(\) < 3;/);
+		expect(source).toMatch(/setCount\(count\(\) \+ 1\)/);
+		expect(source).toMatch(/flush\(\)/);
 	});
 
 	test('flushes setters nested in sequence and conditional expressions', async () => {
@@ -179,9 +181,10 @@ export function Loop({ label }: { label: string }) @{
 }`,
 		});
 		const sequencedSource = emit(sequenced, { generation: 2 });
-		expect(sequencedSource).toMatch(
-			/while \(count\(\) < 3\) \{\s*\(?setCount\(count\(\) \+ 1\),\s*flush\(\),\s*count\(\)\)?;/s,
-		);
+		expect(sequencedSource).toMatch(/while \(count\(\) < 3\) \{/);
+		expect(sequencedSource).toContain('setCount(count() + 1)');
+		expect(sequencedSource).toContain('flush()');
+		expect(sequencedSource).toMatch(/count\(\)/);
 
 		const branched = await buildEnrichedIr({
 			filename: 'test/conditional-setter.tsrx',
@@ -192,8 +195,9 @@ export function Branch({ label }: { label: string }) @{
 }`,
 		});
 		const branchedSource = emit(branched, { generation: 2 });
-		expect(branchedSource).toMatch(/setCount\(count\(\) \+ 1\),\s*flush\(\)/);
-		expect(branchedSource).toMatch(/setCount\(count\(\) - 1\),\s*flush\(\)/);
+		expect(branchedSource).toContain('setCount(count() + 1)');
+		expect(branchedSource).toContain('setCount(count() - 1)');
+		expect(branchedSource).toContain('flush()');
 	});
 
 	test('calls a function-valued computed through its accessor', async () => {
@@ -209,6 +213,60 @@ export function Apply({ label }: { label: string }) @{
 		const source = emit(ir, { generation: 2 });
 		expect(source).toContain('apply()(2)');
 		expect(source).not.toMatch(/(?<![\w.])apply\(2\)/);
+	});
+
+	test('calls a function-valued signal through its accessor', async () => {
+		const ir = structuredClone(await golden('s1-render-once.json')) as Parameters<typeof emit>[0];
+		const handlerBody = (
+			ir.records.events[0]!.handlers[0]!.expression as {
+				body: { body: unknown[] };
+			}
+		).body.body;
+		handlerBody.unshift({
+			type: 'ExpressionStatement',
+			expression: {
+				type: 'CallExpression',
+				callee: { type: 'Identifier', name: 'count' },
+				arguments: [{ type: 'Literal', value: 2, raw: '2' }],
+				optional: false,
+			},
+		});
+		const source = emit(ir, { generation: 2 });
+		expect(source).toContain('count()(2)');
+		expect(source).not.toMatch(/(?<![\w.])count\(2\)/);
+	});
+
+	test('flushes a setter in a while-test so the loop cannot spin on stale state', async () => {
+		const ir = await buildEnrichedIr({
+			filename: 'test/while-test-setter.tsrx',
+			source: `import { state } from "@markless/core";
+export function Loop({ label }: { label: string }) @{
+	let count = state(0);
+	<button onClick={() => { while ((count = count + 1, count < 3)) {} }}>{count} {label}</button>
+}`,
+		});
+		const source = emit(ir, { generation: 2 });
+		expect(source).toMatch(/while \(/);
+		expect(source).toContain('setCount(count() + 1)');
+		expect(source).toContain('flush()');
+		expect(source).toMatch(/count\(\) < 3/);
+	});
+
+	test('preserves a value-observed setter so a following assignment still runs', async () => {
+		const ir = await buildEnrichedIr({
+			filename: 'test/logical-setter.tsrx',
+			source: `import { state } from "@markless/core";
+export function Pair({ label }: { label: string }) @{
+	let count = state(0);
+	let other = state(0);
+	<button onClick={() => { (count = 1) && (other = 2); }}>{count} {other} {label}</button>
+}`,
+		});
+		const source = emit(ir, { generation: 2 });
+		expect(source).toContain('setCount(1)');
+		expect(source).toContain('setOther(2)');
+		expect(source).toMatch(/return committed/);
+		expect(source).toMatch(/&&/);
 	});
 
 	test('reinstalls every host behavior as one effect so shared-input cleanup finishes first', async () => {

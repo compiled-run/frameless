@@ -5,7 +5,7 @@
  * this package. Versionless has no Svelte lane yet.
  */
 export const SVELTE_API_GENERATION = {
-	surveyedAt: '2026-11-02',
+	surveyedAt: '2026-11-03',
 	defaultGeneration: 5,
 	supported: [5],
 	pin: { package: 'svelte', version: '^5.56.1' },
