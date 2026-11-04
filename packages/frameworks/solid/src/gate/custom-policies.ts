@@ -5,7 +5,8 @@ import type { GateViolation } from './index.ts';
 type Node = any;
 type Violate = (file: string, policy: string, message: string, node?: Node) => GateViolation;
 type Imported = { readonly source: string; readonly imported: string };
-const ALLOWED_IMPORTS = new Map([
+type SolidGateVersion = 1 | 2;
+const ALLOWED_IMPORTS_V1 = new Map([
 	[
 		'solid-js',
 		new Set([
@@ -22,7 +23,27 @@ const ALLOWED_IMPORTS = new Map([
 	],
 	['solid-js/store', new Set(['createStore', 'produce', 'reconcile'])],
 ]);
-const EFFECTS = new Set(['createEffect', 'createRenderEffect', 'createComputed', 'onMount']);
+const ALLOWED_IMPORTS_V2 = new Map([
+	[
+		'solid-js',
+		new Set([
+			'createSignal',
+			'createStore',
+			'reconcile',
+			'untrack',
+			'For',
+			'Show',
+			'createContext',
+			'useContext',
+			'createEffect',
+			'onSettled',
+			'onCleanup',
+			'flush',
+		]),
+	],
+]);
+const EFFECTS_V1 = new Set(['createEffect', 'createRenderEffect', 'createComputed', 'onMount']);
+const EFFECTS_V2 = new Set(['createEffect', 'createRenderEffect', 'createComputed', 'onSettled']);
 const is = (node: unknown, type: string, properties?: Record<string, unknown>): boolean =>
 	Boolean(
 		node &&
@@ -136,7 +157,10 @@ export function customPolicies(
 	file: string,
 	makeViolation: Violate,
 	recordedRelativeImports: ReadonlySet<string> = new Set(),
+	version: SolidGateVersion = 1,
 ): GateViolation[] {
+	const ALLOWED_IMPORTS = version === 2 ? ALLOWED_IMPORTS_V2 : ALLOWED_IMPORTS_V1;
+	const EFFECTS = version === 2 ? EFFECTS_V2 : EFFECTS_V1;
 	// `tsx`, NOT `jsx`. This gate reads EMITTED `.tsx`, which carries an IR-8 props
 	// type annotation from `frameless-emitter-capability-v1` T014 onward. Measured
 	// at yuku-parser/yuku-analyzer 0.7.0: `jsx` reports "Expected ')' to close
@@ -419,16 +443,25 @@ export function customPolicies(
 							is(write, 'CallExpression') && is(write.callee, 'Identifier')
 								? imports.get(module.symbolOf(write.callee)!)?.imported
 								: null;
-						if (
-							node.arguments.length !== 1 ||
-							!primitive ||
-							!['produce', 'reconcile'].includes(primitive)
-						)
+						const draftFirst =
+							version === 2 &&
+							is(write, 'ArrowFunctionExpression') &&
+							write.params.length === 1;
+						const allowed =
+							node.arguments.length === 1 &&
+							(draftFirst ||
+								(typeof primitive === 'string' &&
+									(version === 2
+										? primitive === 'reconcile'
+										: primitive === 'produce' || primitive === 'reconcile')));
+						if (!allowed)
 							violations.push(
 								violation(
 									file,
 									'store-write-shape',
-									'Store writes require one produce or reconcile operation',
+									version === 2
+										? 'Store writes require one draft callback or reconcile operation'
+										: 'Store writes require one produce or reconcile operation',
 									node,
 								),
 							);
@@ -649,7 +682,29 @@ export function customPolicies(
 				const checked = attribute(node, 'checked');
 				const live = value ? expressionValue(value.value) : null;
 				const attr = attrValue ? expressionValue(attrValue.value) : null;
-				if (value && (!onInput || !attrValue || !live || !attr || !equivalent(live, attr)))
+				if (version === 2) {
+					if (value && !onInput)
+						violations.push(
+							violation(
+								file,
+								'controlled-input',
+								'Controlled text value requires onInput',
+								node,
+							),
+						);
+					if (attrValue)
+						violations.push(
+							violation(
+								file,
+								'controlled-input',
+								'Solid 2 removed attr: namespaces; controlled text must not emit attr:value',
+								node,
+							),
+						);
+				} else if (
+					value &&
+					(!onInput || !attrValue || !live || !attr || !equivalent(live, attr))
+				)
 					violations.push(
 						violation(
 							file,
@@ -715,10 +770,14 @@ export function customPolicies(
 			module.walk(
 				{
 					MemberExpression(member: Node) {
-						if (
-							is(member.object, 'Identifier') &&
-							module.symbolOf(member.object) === rowSymbol
-						) {
+						const object = member.object;
+						const rowObject =
+							(is(object, 'Identifier') && module.symbolOf(object) === rowSymbol) ||
+							(is(object, 'CallExpression') &&
+								is(object.callee, 'Identifier') &&
+								object.arguments.length === 0 &&
+								module.symbolOf(object.callee) === rowSymbol);
+						if (rowObject) {
 							const name = propertyName(member);
 							if (name) rowProperties.add(name);
 						}
