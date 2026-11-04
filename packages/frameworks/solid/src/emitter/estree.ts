@@ -45,6 +45,7 @@ export const booleanLiteral = (value: boolean): any =>
 	node('Literal', { value, raw: String(value) });
 export const nullLiteral = (): any => node('Literal', { value: null, raw: 'null' });
 export const arrayPattern = (elements: any[]): any => node('ArrayPattern', { elements });
+export const arrayExpression = (elements: any[]): any => node('ArrayExpression', { elements });
 export const objectPattern = (properties: any[]): any => node('ObjectPattern', { properties });
 export const assignmentPattern = (left: any, right: any): any =>
 	node('AssignmentPattern', { left, right });

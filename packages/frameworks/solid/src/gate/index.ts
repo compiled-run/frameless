@@ -576,7 +576,7 @@ function persistenceEffectViolations(source: string, file: string): GateViolatio
 		if (
 			node.type !== 'CallExpression' ||
 			node.callee?.type !== 'Identifier' ||
-			!['createEffect', 'onMount'].includes(node.callee.name)
+			!['createEffect', 'onMount', 'onSettled'].includes(node.callee.name)
 		)
 			return;
 		let readsPersistence = false;
@@ -598,7 +598,7 @@ function persistenceEffectViolations(source: string, file: string): GateViolatio
 				violation(
 					file,
 					'persistence-render-lowering',
-					'Persistence seed reads must not run in createEffect or onMount',
+					'Persistence seed reads must not run in createEffect, onMount, or onSettled',
 					node,
 				),
 			);
@@ -695,10 +695,14 @@ function typeOnlyParameterPositions(source: string): Set<string> {
 	const positions = new Set<string>();
 	let tree: unknown;
 	try {
-		tree = (tsParser as unknown as { parse: (code: string, options: unknown) => unknown }).parse(
-			source,
-			{ ecmaFeatures: { jsx: true }, ecmaVersion: 'latest', sourceType: 'module', loc: true },
-		);
+		tree = (
+			tsParser as unknown as { parse: (code: string, options: unknown) => unknown }
+		).parse(source, {
+			ecmaFeatures: { jsx: true },
+			ecmaVersion: 'latest',
+			sourceType: 'module',
+			loc: true,
+		});
 	} catch {
 		// A source this parser cannot read is already an `eslint:parse` violation;
 		// suppressing nothing is the fail-closed answer.
@@ -722,8 +726,7 @@ function typeOnlyParameterPositions(source: string): Set<string> {
 			return (entry.properties as unknown[]).forEach((property) =>
 				record((property as Record<string, any>).value ?? property),
 			);
-		if (entry.type === 'ArrayPattern')
-			return (entry.elements as unknown[]).forEach(record);
+		if (entry.type === 'ArrayPattern') return (entry.elements as unknown[]).forEach(record);
 		if (entry.type === 'Identifier' && entry.loc?.start)
 			positions.add(`${entry.loc.start.line}:${entry.loc.start.column + 1}`);
 	};
@@ -756,7 +759,7 @@ export function withoutTypeOnlyParameterReports<
 	);
 }
 
-function makeEslint(cwd: string): ESLint {
+function makeEslint(cwd: string, version: 1 | 2 = 1): ESLint {
 	const plugin = solidPlugin as unknown as {
 		configs?: Record<string, any>;
 		default?: { configs?: Record<string, any> };
@@ -806,6 +809,7 @@ function makeEslint(cwd: string): ESLint {
 						},
 					],
 					'no-unused-expressions': 'error',
+					...(version === 2 ? { 'solid/imports': 'off' as const } : {}),
 				},
 			},
 		] as any,
@@ -818,10 +822,10 @@ export async function checkSources(
 		readonly source: string;
 		readonly artifact?: EnrichedIR;
 	}>,
-	options: { readonly cwd?: string } = {},
+	options: { readonly cwd?: string; readonly version?: 1 | 2 } = {},
 ): Promise<GateResult> {
 	const cwd = resolve(options.cwd ?? PACKAGE_ROOT);
-	const eslint = makeEslint(cwd);
+	const eslint = makeEslint(cwd, options.version ?? 1);
 	const violations: GateViolation[] = [];
 	const unevaluatedPolicies = new Set<string>();
 	for (const { file, source, artifact } of entries) {
@@ -832,6 +836,7 @@ export async function checkSources(
 					file,
 					violation,
 					recordedRelativeImportSpecifiers(artifact),
+					options.version ?? 1,
 				),
 			);
 		} catch (error) {
@@ -847,8 +852,7 @@ export async function checkSources(
 			if (persistenceViolations) violations.push(...persistenceViolations);
 			else unevaluatedPolicies.add('persistence-render-lowering');
 			violations.push(...(await provenanceViolations(source, file, artifact)));
-		}
-		else {
+		} else {
 			// An artifact-less relative import is present but unverifiable. That is a
 			// violation, not unevaluated: undisclosed-import itself always ran above.
 			for (const policy of SOLID_GATE_POLICIES)

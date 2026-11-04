@@ -6,13 +6,15 @@ the browser analyzer adapter.
 
 ## Target boundaries
 
-1. Import the analyzer lifecycle from `@frameless/solid/adapter` in browser projects. That subpath
-   contains only the adapter and browser/runtime dependencies.
+1. Import the analyzer lifecycle from `@frameless/solid/adapter` (Solid 1) or
+   `@frameless/solid/adapter-v2` (Solid 2 RC) in browser projects. Those subpaths contain only the
+   adapter and browser/runtime dependencies.
 2. Keep EnrichedIR target-neutral. Solid lowering, ESTree generation, ESLint policy, stores, and JSX
    transforms stay in this package.
-3. Treat `generated/*.jsx` as output. Change the structural emitter or gate and regenerate; never
-   hand-edit component behavior.
-4. Keep the runtime label `solid-1.8.22-fallback`. Do not describe this lane as Solid 2 validation.
+3. Treat `generated/*.tsx` as Solid 1 output and `generated-v2/*.tsx` as Solid 2 RC output. Change
+   the structural emitter or gate and regenerate; never hand-edit component behavior.
+4. Keep the Solid 1 runtime label `solid-1.8.22-fallback`. The Solid 2 label is `solid-2.0.0-rc.21`.
+   Do not describe the v1 browser lane as Solid 2 validation.
 
 ## Dossier invariants
 

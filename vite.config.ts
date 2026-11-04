@@ -2,7 +2,8 @@ import { defineConfig } from 'vite-plus';
 import type { PackUserConfig } from 'vite-plus/pack';
 
 const rootDir = import.meta.dirname;
-const packageImport = (name: string) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/.*)?$`);
+const packageImport = (name: string) =>
+	new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/.*)?$`);
 const nodeBuiltinImport = /^node:.*$/;
 
 const pack = (
@@ -34,8 +35,16 @@ const productConfig = defineConfig({
 	pack: [
 		pack('packages/compiler', '@frameless/compiler', ['@markless/compiler', '@tsrx/core']),
 		pack('packages/analyzer', '@frameless/analyzer'),
-		pack('packages/frameworks/react', '@frameless/react', ['@frameless/analyzer', 'react', 'react-dom']),
-		pack('packages/frameworks/solid', '@frameless/solid', ['@frameless/analyzer', 'solid-js']),
+		pack('packages/frameworks/react', '@frameless/react', [
+			'@frameless/analyzer',
+			'react',
+			'react-dom',
+		]),
+		pack('packages/frameworks/solid', '@frameless/solid', [
+			'@frameless/analyzer',
+			'solid-js',
+			'@solidjs/web',
+		]),
 		pack(
 			'packages/cli',
 			'@frameless/cli',
@@ -52,7 +61,11 @@ const productConfig = defineConfig({
 				test: {
 					name: 'node',
 					environment: 'node',
-					include: ['packages/*/test/**/*.test.ts', 'packages/frameworks/*/test/**/*.test.ts', 'packages/compiler/test/**/*.test.ts'],
+					include: [
+						'packages/*/test/**/*.test.ts',
+						'packages/frameworks/*/test/**/*.test.ts',
+						'packages/compiler/test/**/*.test.ts',
+					],
 					// frameworks' browser suites run in their own projects; node-lane
 					// tests in frameworks packages (emitter/gate) belong here.
 					exclude: ['poc/**', '**/*.browser.test.ts', '**/node_modules/**'],
@@ -104,5 +117,8 @@ const currentDirectory = process.cwd();
 const directPocRun = currentDirectory.includes('/poc/');
 
 export default directPocRun
-	? defineConfig({ root: currentDirectory, test: { environment: 'node', include: ['test/**/*.test.ts'] } })
+	? defineConfig({
+			root: currentDirectory,
+			test: { environment: 'node', include: ['test/**/*.test.ts'] },
+		})
 	: productConfig;
