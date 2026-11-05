@@ -75,10 +75,13 @@ mutation, and a temporary generated file exercises discovery through `checkGener
 
 ## Checked-in output and size
 
-`generated/S1.jsx`, `S2.jsx`, and `S3.jsx` are byte-checked against formatted fresh emission from
+`generated/S1.tsx`, `S2.tsx`, and `S3.tsx` are byte-checked against formatted fresh emission from
 the compiler goldens. `pnpm --dir packages/frameworks/solid regenerate` refreshes them. Physical
 nonblank component LOC is primary; structural ESTree node count is secondary. S2/S3 reference bodies include
 calibration mutant branches, so these comparisons are intentionally conservative.
+
+`generated-v2/S1.tsx`–`S3.tsx` are the Solid 2 RC emit lane, byte-checked against
+`emit(ir, { version: '2' })`. Refresh with `pnpm --dir packages/frameworks/solid regenerate:v2`.
 
 `generated-composition/*.jsx` is also checked in. The node suite rebuilds every file through the
 composition regeneration path and byte-compares it with the committed golden. After composition
@@ -93,16 +96,25 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 
 ## Framework-version honesty
 
-The executable package lane is named exactly `solid-1.8.22-fallback` and pins Solid 1.8.22 with
-`vite-plugin-solid` 2.11.10. The T003 research ledger was refreshed against Solid
-`v2.0.0-beta.9`, superseding the POC's older experimental.16 blocker evidence, but this package is
-**not Solid 2 runtime-validated**. Its v2 items remain recorded migration work; the fallback browser
-lane must not be reported as Solid 2 evidence.
+The executable browser lane is named exactly `solid-1.8.22-fallback` and pins Solid 1.8.22 with
+`vite-plugin-solid` 2.11.10. That remains the default `emit(ir)` lowering: Solid 2 is still an RC
+(`solid-js@2.0.0-rc.21`, dist-tag `next`), while `latest` is Solid 1.9.18.
 
-Solid 2 blocker evidence: beta.9 removes the `./web` and `./store` subpath exports that the v1
-toolchain output links against. `test/solid2-blocker.test.ts` is the executable contract; if a
-future Solid 2 pin restores either export or its replacement toolchain links successfully through
-the JSX runtime model, revisit the v1-fallback decision.
+`emit(ir, { version: '2' })` is the Solid 2 RC emit lane. It is source-shape tested against
+`generated-v2/S1.tsx`–`S3.tsx` (`pnpm --dir packages/frameworks/solid regenerate:v2`). It is **not
+Solid 2 runtime-validated**: there is no v2 browser project, and the adapter still mounts through
+`solid-js/web`. Do not describe the fallback browser lane as Solid 2 evidence.
+
+The v2 lowering is the T003 migration ledger made executable: store APIs come from `solid-js`
+(not `solid-js/store`), `produce` is dropped because draft setters are the default, `attr:value`
+is omitted, `<For keyed={(item) => item.id}>` receives row accessors, and handlers call `flush()`
+after signal writes so later reads in the same turn see the new value.
+
+Solid 1 stays in this package until Solid 2 has been latest-stable for a decent interval. Then the
+1.x emit path is the work that belongs in versionless, not a silent deletion here.
+
+Solid 2 RC still does not export `./web` or `./store`. `test/solid2-blocker.test.ts` is the
+executable contract for that fact against the v1 toolchain.
 
 ## Generality boundary
 

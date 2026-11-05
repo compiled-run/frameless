@@ -4,20 +4,13 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { runInNewContext } from 'node:vm';
-import {
-	buildEnrichedIr,
-	FRAMELESS_STATE_GLOBAL,
-	type EnrichedIR,
-} from '@frameless/compiler';
+import { buildEnrichedIr, FRAMELESS_STATE_GLOBAL, type EnrichedIR } from '@frameless/compiler';
 import { resolve } from 'pathe';
 import { parse } from 'yuku-parser';
 import { analyze } from 'yuku-analyzer';
 import { generate } from 'yuku-codegen';
 import { describe, expect, test } from 'vitest';
-import {
-	compositionFixtures,
-	emitCompositionFixture,
-} from '../scripts/regenerate-composition.ts';
+import { compositionFixtures, emitCompositionFixture } from '../scripts/regenerate-composition.ts';
 import { emit, validateEnrichedIr } from '../src/emitter/index.ts';
 import { formatEmitted } from '../src/format-emitted.ts';
 import { checkSources } from '../src/gate/index.ts';
@@ -245,7 +238,8 @@ describe('Solid structural emitter', () => {
 				await writeFile(resolve(goldens, entry), '{}');
 			expect(scenarioFixtures(goldens)).toEqual(fixtures);
 			// MISSING, on the emitted side: one file short of the derived table.
-			for (const file of files.slice(0, -1)) await writeFile(resolve(generated, file), '//\n');
+			for (const file of files.slice(0, -1))
+				await writeFile(resolve(generated, file), '//\n');
 			expect(emittedScenarios(generated)).not.toEqual(files);
 			await writeFile(resolve(generated, files.at(-1)!), '//\n');
 			expect(emittedScenarios(generated)).toEqual(files);
@@ -331,6 +325,66 @@ describe('Solid structural emitter', () => {
 		expect(callback).toBeGreaterThan(second);
 	});
 
+	describe('Solid 2 emit lane', () => {
+		const generatedV2 = resolve(root, 'generated-v2');
+
+		for (const [output, goldenName] of [
+			['S1.tsx', 's1-render-once.json'],
+			['S2.tsx', 's2-keyed-todo.json'],
+			['S3.tsx', 's3-event-form.json'],
+		] as const) {
+			test(`${output} is fresh from emit(ir, { version: '2' })`, async () => {
+				const ir = await golden(goldenName);
+				expect(await readFile(resolve(generatedV2, output), 'utf8')).toBe(
+					await formatEmitted(emit(ir, { version: '2' })),
+				);
+			});
+		}
+
+		test('keeps default emit on the Solid 1 lowering', async () => {
+			const ir = await golden('s2-keyed-todo.json');
+			expect(emit(ir)).toBe(emit(ir, { version: '1' }));
+			expect(emit(ir)).not.toBe(emit(ir, { version: '2' }));
+		});
+
+		test('moves store APIs onto solid-js and drops produce, attr:value, and solid-js/store', async () => {
+			const [s1, s2, s3] = await Promise.all(
+				['S1.tsx', 'S2.tsx', 'S3.tsx'].map((file) =>
+					readFile(resolve(generatedV2, file), 'utf8'),
+				),
+			);
+			expect(s1).toContain("from 'solid-js'");
+			expect(s1).toContain('flush()');
+			expect(s1).not.toContain('solid-js/store');
+			expect(s1).not.toContain('attr:value');
+			expect(s2).toMatch(/from 'solid-js'/);
+			expect(s2).not.toContain('solid-js/store');
+			expect(s2).not.toContain('produce');
+			expect(s2).not.toContain('attr:value');
+			expect(s2).toMatch(/keyed=\{\(todo\) => todo\.id\}/);
+			expect(s2).toMatch(/value=\{todo\(\)\.title\}/);
+			expect(s2).toMatch(/setTodos\(\(storeDraft\) =>/);
+			expect(s2).toContain("reconcile(todos.concat(item), 'id')");
+			expect(s3).not.toContain('attr:value');
+			expect(s3).toMatch(/setWrites\(1\);\s*flush\(\);\s*setWrites\(2\);\s*flush\(\);/);
+			expect(`${s1}\n${s2}\n${s3}`).not.toMatch(/createMemo|className=|htmlFor=/);
+		});
+
+		test('rewrites composition attach from onMount to onSettled', async () => {
+			const attach = await buildEnrichedIr({
+				filename: 'src/attach-v2.tsrx',
+				source: `import { state } from "@markless/core"; export function Page() @{ let value = state("a"); <div attach={(node) => { node.dataset.value = value; return () => { delete node.dataset.value; }; }} /> }`,
+			});
+			const source = emit(attach, { version: '2' });
+			expect(source).toMatch(/import \{[^}]*onSettled[^}]*\} from 'solid-js'/);
+			expect(source).not.toContain('onMount');
+			expect(source).toMatch(/const attachHost\d* = \(node\) => \{\s*onSettled\(\(\) => \{/);
+			expect(source).toMatch(/createEffect\(\(\) => \{/);
+			expect(source).toMatch(/createEffect\([\s\S]*\(\) => \{\s*\}\)/);
+			expect(source).not.toContain('solid-js/store');
+		});
+	});
+
 	/**
 	 * NESTED REPEAT SOURCED FROM THE ENCLOSING REPEAT ITEM - T033.
 	 *
@@ -349,7 +403,10 @@ describe('Solid structural emitter', () => {
 		async function s4Ir(): Promise<EnrichedIR> {
 			return buildEnrichedIr({
 				filename: 'src/fixtures/s4-nested-list.tsrx',
-				source: await readFile(resolve(goldenRoot, '../fixtures/s4-nested-list.tsrx'), 'utf8'),
+				source: await readFile(
+					resolve(goldenRoot, '../fixtures/s4-nested-list.tsrx'),
+					'utf8',
+				),
 			});
 		}
 
@@ -455,7 +512,9 @@ describe('Solid structural emitter', () => {
 	 * probe into every lane's gates. It is a probe source, per the T039 pattern.
 	 */
 	describe('async event handlers', () => {
-		const asyncProbeSource = (opening: string): string => `import { state } from '@markless/core';
+		const asyncProbeSource = (
+			opening: string,
+		): string => `import { state } from '@markless/core';
 
 export function AsyncProbe({ ready, onTrace }) @{
 	let ticks = state(0);
@@ -560,7 +619,13 @@ export function AsyncProbe({ ready, onTrace }) @{
 				await first;
 				await second;
 				await handler(event);
-				const result = { ticks: ticks(), phase: phase(), duringSuspension, prevented, trace };
+				const result = {
+					ticks: ticks(),
+					phase: phase(),
+					duringSuspension,
+					prevented,
+					trace,
+				};
 				dispose();
 				return result;
 			});
@@ -612,9 +677,7 @@ export function AsyncProbe({ ready, onTrace }) @{
 
 		test('preserves the authored preventDefault at the top of an async body', async () => {
 			const emitted = await emitProbe(cancelling);
-			expect(emitted).toMatch(
-				/onClick=\{async \(event\) => \{\s*event\.preventDefault\(\);/,
-			);
+			expect(emitted).toMatch(/onClick=\{async \(event\) => \{\s*event\.preventDefault\(\);/);
 			expect(emitted.match(/event\.preventDefault\(\)/g)).toHaveLength(1);
 			const outcome = await dispatchAcrossAwait(emittedHandler(emitted));
 			expect(outcome.prevented).toBe(3);
@@ -686,9 +749,7 @@ export function Guarded({ onTrace }) @{
 			// strip-filter only inspected top-level statements. Exactly one call, and
 			// it is the authored one, inside the guard.
 			expect(source.match(/event\.preventDefault\(\)/g)).toHaveLength(1);
-			expect(source).toMatch(
-				/if \(event\.key === 'Enter'\) \{\s*event\.preventDefault\(\);/,
-			);
+			expect(source).toMatch(/if \(event\.key === 'Enter'\) \{\s*event\.preventDefault\(\);/);
 			expect(source).not.toMatch(
 				/\(event\) => \{\s*event\.preventDefault\(\);\s*if \(event\.key/,
 			);
@@ -1592,7 +1653,6 @@ export function Search() @{
 			).toHaveLength(1);
 		});
 
-
 		test('keeps an artifact with no persistence records byte-identical', async () => {
 			const ir = await golden('s1-render-once.json');
 			const before = emit(ir);
@@ -1841,7 +1901,9 @@ export function Search() @{
 			expect(typed).toContain('label: string');
 			expect(typed).toContain('multiplier: number');
 			expect(typed).toContain('visible: boolean');
-			expect(typed).toContain('onTrace: (name: string, detail: Record<string, unknown>) => void');
+			expect(typed).toContain(
+				'onTrace: (name: string, detail: Record<string, unknown>) => void',
+			);
 			expect(untyped).not.toContain('string');
 			expect(untyped).toContain('function RenderOnce(props)');
 			// ALL-OR-NOTHING. One prop losing its annotation suppresses the whole
