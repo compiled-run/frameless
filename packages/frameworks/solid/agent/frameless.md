@@ -12,7 +12,9 @@ the browser analyzer adapter.
    transforms stay in this package.
 3. Treat `generated/*.jsx` as output. Change the structural emitter or gate and regenerate; never
    hand-edit component behavior.
-4. Keep the runtime label `solid-1.8.22-fallback`. Do not describe this lane as Solid 2 validation.
+4. Keep the runtime label `solid-1.8.22-fallback` for the browser adapter. Default `emit(ir)` is
+   Solid 1.x. `emit(ir, { version: '2' })` is the Solid 2 RC source lane; it is not browser-validated.
+   Do not describe the fallback browser lane as Solid 2 validation.
 
 ## Dossier invariants
 

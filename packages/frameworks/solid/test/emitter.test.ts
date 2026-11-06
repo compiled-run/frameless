@@ -331,6 +331,121 @@ describe('Solid structural emitter', () => {
 		expect(callback).toBeGreaterThan(second);
 	});
 
+	describe('Solid 2 emit lane', () => {
+		const generatedV2 = resolve(root, 'generated-v2');
+
+		for (const [output, goldenName] of [
+			['S1.tsx', 's1-render-once.json'],
+			['S2.tsx', 's2-keyed-todo.json'],
+			['S3.tsx', 's3-event-form.json'],
+		] as const) {
+			test(`${output} is fresh from emit(ir, { version: '2' })`, async () => {
+				const ir = await golden(goldenName);
+				expect(await readFile(resolve(generatedV2, output), 'utf8')).toBe(
+					await formatEmitted(emit(ir, { version: '2' })),
+				);
+			});
+		}
+
+		test('keeps default emit on the Solid 1 lowering', async () => {
+			const ir = await golden('s2-keyed-todo.json');
+			expect(emit(ir)).toBe(emit(ir, { version: '1' }));
+			expect(emit(ir)).not.toBe(emit(ir, { version: '2' }));
+		});
+
+		test('moves store APIs onto solid-js and drops produce, attr:value, and solid-js/store', async () => {
+			const [s1, s2, s3] = await Promise.all(
+				['S1.tsx', 'S2.tsx', 'S3.tsx'].map((file) =>
+					readFile(resolve(generatedV2, file), 'utf8'),
+				),
+			);
+			expect(s1).toContain("from 'solid-js'");
+			expect(s1).toContain('flush()');
+			expect(s1).not.toContain('solid-js/store');
+			expect(s1).not.toContain('attr:value');
+			expect(s2).toMatch(/from 'solid-js'/);
+			expect(s2).not.toContain('solid-js/store');
+			expect(s2).not.toContain('produce');
+			expect(s2).not.toContain('attr:value');
+			expect(s2).toMatch(/keyed=\{\(todo\) => todo\.id\}/);
+			expect(s2).toMatch(/value=\{todo\(\)\.title\}/);
+			expect(s2).toMatch(/setTodos\(\(storeDraft\) =>/);
+			expect(s2).toContain("reconcile(todos.concat(item), 'id')");
+			expect(s2).toMatch(
+				/setTodos\(\(storeDraft2\) => \{[\s\S]*?\}\);\s*flush\(\);\s*props\.onTrace\('edit'/,
+			);
+			expect(s3).not.toContain('attr:value');
+			expect(s3).toMatch(/setWrites\(1\);\s*flush\(\);\s*setWrites\(2\);\s*flush\(\);/);
+			expect(`${s1}\n${s2}\n${s3}`).not.toMatch(/createMemo|className=|htmlFor=/);
+		});
+
+		test('flushes before a persistence read of the value just written', async () => {
+			const ir = await authoredPersistenceIr();
+			const source = emit(ir, { version: '2' });
+			expect(source).toMatch(
+				/setFilter\([\s\S]*?\);\s*flush\(\);\s*__framelessWrite\(/,
+			);
+		});
+
+		test('flushes setter calls nested inside an if so later reads in that branch see the write', async () => {
+			const ir = await buildEnrichedIr({
+				filename: 'src/solid2-nested-flush.tsrx',
+				source: `import { state } from "@markless/core";
+export function NestedFlush({ onTrace }) @{
+	let count = state(0);
+	<button
+		onClick={() => {
+			if (true) {
+				count = count + 1;
+				onTrace('inc', { count });
+			}
+		}}
+	>{count}</button>
+}
+`,
+			});
+			const source = emit(ir, { version: '2' });
+			expect(source).toMatch(
+				/if \(true\) \{\s*setCount\(count\(\) \+ 1\);\s*flush\(\);\s*props\.onTrace\('inc', \{ count: count\(\) \}\);\s*\}/,
+			);
+		});
+
+		test('does not wrap a For item accessor twice in a row event handler', async () => {
+			const ir = await golden('s2-keyed-todo.json');
+			const source = emit(ir, { version: '2' });
+			expect(source).toMatch(/todo\(\)\.id/);
+			expect(source).not.toMatch(/todo\(\)\(\)/);
+		});
+
+		test('nested keyed For items are accessors independently, without double wrapping', async () => {
+			const source = emit(await golden('s4-nested-list.json'), { version: '2' });
+			expect(source).toMatch(/<For each=\{groups\} keyed=\{\(group\) => group\.id\}>/);
+			expect(source).toMatch(/<For each=\{group\(\)\.rows\}>/);
+			expect(source).toMatch(/data-oracle-cell-key=\{row\.id\}/);
+			expect(source).toMatch(/setSelection\(`\$\{group\(\)\.id\}>\$\{row\.id\}`\)/);
+			expect(source).not.toMatch(/row\(\)/);
+			expect(source).not.toMatch(/group\(\)\(\)/);
+		});
+
+		test('rewrites composition attach from onMount to owned onSettled that returns cleanup', async () => {
+			const attach = await buildEnrichedIr({
+				filename: 'src/attach-v2.tsrx',
+				source: `import { state } from "@markless/core"; export function Page() @{ let value = state("a"); <div attach={(node) => { node.dataset.value = value; return () => { delete node.dataset.value; }; }} /> }`,
+			});
+			const source = emit(attach, { version: '2' });
+			expect(source).toMatch(/import \{[^}]*onSettled[^}]*\} from 'solid-js'/);
+			expect(source).not.toContain('onMount');
+			expect(source).toMatch(/let hostNode\d*;/);
+			expect(source).toMatch(/const attachHost\d* = \(el\) => \{\s*hostNode\d* = el;/);
+			expect(source).toMatch(/onSettled\(\(\) => \{/);
+			expect(source).toMatch(/return \(\) => \{/);
+			expect(source).not.toMatch(/onSettled\([\s\S]*onCleanup\(/);
+			expect(source).toMatch(/createEffect\(\(\) => \{/);
+			expect(source).toMatch(/createEffect\([\s\S]*\(\) => \{\s*\}\)/);
+			expect(source).not.toContain('solid-js/store');
+		});
+	});
+
 	/**
 	 * NESTED REPEAT SOURCED FROM THE ENCLOSING REPEAT ITEM - T033.
 	 *
