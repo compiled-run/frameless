@@ -10,9 +10,12 @@ the browser analyzer adapter.
    contains only the adapter and browser/runtime dependencies.
 2. Keep EnrichedIR target-neutral. Solid lowering, ESTree generation, ESLint policy, stores, and JSX
    transforms stay in this package.
-3. Treat `generated/*.jsx` as output. Change the structural emitter or gate and regenerate; never
-   hand-edit component behavior.
-4. Keep the runtime label `solid-1.8.22-fallback`. Do not describe this lane as Solid 2 validation.
+3. Treat `generated/*.tsx` and `generated-v2/*.tsx` as output. Change the structural emitter or
+   gate and regenerate; never hand-edit component behavior. Refresh the Solid 2 lane with
+   `pnpm --dir packages/frameworks/solid regenerate:v2`.
+4. Keep the runtime label `solid-1.8.22-fallback` for the browser adapter. Default `emit(ir)` is
+   Solid 1.x. `emit(ir, { version: '2' })` is the Solid 2 RC source lane; it is not browser-validated.
+   Do not describe the fallback browser lane as Solid 2 validation.
 
 ## Dossier invariants
 

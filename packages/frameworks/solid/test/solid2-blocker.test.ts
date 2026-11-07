@@ -41,25 +41,31 @@ function resolutionErrorCode(specifier: string): string | undefined {
 	}
 }
 
-async function betaManifest(): Promise<PackageManifest> {
+async function solid2Manifest(): Promise<PackageManifest> {
 	return JSON.parse(
-		await readFile(nodeRequire.resolve('solid-beta9/package.json'), 'utf8'),
+		await readFile(nodeRequire.resolve('solid2/package.json'), 'utf8'),
 	) as PackageManifest;
 }
 
 describe('Solid 2 toolchain blocker contract', () => {
-	test('pins the T003 evidence runtime and its JSX-runtime migration path', async () => {
-		// T003 uses Solid 2.0.0-beta.9 as its evidence base.
-		const manifest = await betaManifest();
-		expect(manifest.version).toBe('2.0.0-beta.9');
-
-		// Solid 2's toolchain moves to the JSX runtime model.
-		expect(Object.keys(manifest.exports)).toContain('./jsx-runtime');
+	test('pins the Solid 2 RC evidence runtime and its removed 1.x subpaths', async () => {
+		const manifest = await solid2Manifest();
+		expect(manifest.version).toBe('2.0.0-rc.21');
+		expect(Object.keys(manifest.exports)).not.toContain('./web');
+		expect(Object.keys(manifest.exports)).not.toContain('./store');
+		expect(Object.keys(manifest.exports)).not.toContain('./jsx-runtime');
 	});
 
-	test('emitted S2 output links to the Solid 1 store subpath', async () => {
+	test('emitted Solid 1 S2 output links to the Solid 1 store subpath', async () => {
 		const source = await readFile(resolve(root, 'generated/S2.tsx'), 'utf8');
 		expect(importSources(source)).toContain('solid-js/store');
+	});
+
+	test('emitted Solid 2 S2 output does not link the removed 1.x subpaths', async () => {
+		const source = await readFile(resolve(root, 'generated-v2/S2.tsx'), 'utf8');
+		expect(importSources(source)).toEqual(['solid-js']);
+		expect(source).not.toContain('solid-js/store');
+		expect(source).not.toContain('solid-js/web');
 	});
 
 	test('the installed Solid 1 JSX toolchain links DOM output to the web subpath', async () => {
@@ -68,27 +74,25 @@ describe('Solid 2 toolchain blocker contract', () => {
 		const presetRequire = createRequire(presetPath);
 		const { transformAsync } = presetRequire('@babel/core') as BabelCore;
 		const solidPreset = nodeRequire('babel-preset-solid');
-		const result = await transformAsync(
-			'export function BlockerProbe() { return <div />; }',
-			{
-				babelrc: false,
-				configFile: false,
-				filename: 'solid2-blocker-probe.tsx',
-				presets: [[solidPreset, { generate: 'dom' }]],
-			},
-		);
+		const result = await transformAsync('export function BlockerProbe() { return <div />; }', {
+			babelrc: false,
+			configFile: false,
+			filename: 'solid2-blocker-probe.tsx',
+			presets: [[solidPreset, { generate: 'dom' }]],
+		});
 
 		expect(result?.code).toBeTypeOf('string');
 		expect(importSources(result?.code ?? '')).toContain('solid-js/web');
 	});
 
-	test('beta.9 cannot link the v1 web or store dependencies', () => {
+	test('Solid 2 RC cannot link the v1 web or store dependencies', () => {
 		expect(nodeRequire.resolve('solid-js/web')).toBeTypeOf('string');
 		expect(nodeRequire.resolve('solid-js/store')).toBeTypeOf('string');
 
-		// OVERTURN TRIGGER: revisit the v1 fallback when a future Solid 2 pin exports
-		// these paths or its replacement toolchain no longer emits them.
-		expect(resolutionErrorCode('solid-beta9/web')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
-		expect(resolutionErrorCode('solid-beta9/store')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+		// The v1 browser lane still depends on these subpaths. The v2 emit lane
+		// does not. Overturn the v1-default runtime when Solid 2 is latest-stable
+		// long enough to move 1.x work into versionless.
+		expect(resolutionErrorCode('solid2/web')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+		expect(resolutionErrorCode('solid2/store')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
 	});
 });
