@@ -21,6 +21,7 @@
 		"measure:size": "node --experimental-strip-types scripts/measure-size.ts",
 		"regenerate": "node scripts/regenerate.ts",
 		"regenerate:composition": "node scripts/regenerate-composition.ts",
+		"regenerate:v2": "node scripts/regenerate-v2.ts",
 		"test": "vitest run --config vitest.node.config.ts",
 		"test:browser": "vitest run --config vitest.config.ts --project solid-browser"
 	},
@@ -41,7 +42,7 @@
 		"@vitest/browser-playwright": "4.1.5",
 		"babel-preset-solid": "1.9.12",
 		"playwright": "1.58.2",
-		"solid-beta9": "npm:solid-js@2.0.0-beta.9",
+		"solid2": "npm:solid-js@2.0.0-rc.21",
 		"vite": "catalog:default",
 		"vite-plugin-solid": "2.11.10",
 		"vitest": "catalog:default",
