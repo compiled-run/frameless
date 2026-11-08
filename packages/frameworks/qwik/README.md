@@ -21,8 +21,11 @@ the unsupported runner is. A test whose failures cannot be attributed is not a
 test.
 
 **Unblock condition:** a `@qwik.dev/core` release whose `peerDependencies.vitest`
-admits 4.x. As of this writing `@qwik.dev/core@latest` *is* `2.0.0-beta.38`, so
-there is no newer release to move to.
+admits 4.x. `@qwik.dev/core@latest` is now `2.0.0-rc.4`, and that release
+declares `vitest: ">=2 <5"` — so the runner window is open. This package
+stays on `2.0.0-beta.38` until a dedicated pin-bump re-measures the emitter,
+gate, and e2e against rc.4; the browser project is not added on the old pin,
+because that pin still declares `vitest: ">=2 <4"`.
 
 **What covers Qwik in the meantime:**
 
