@@ -35,8 +35,8 @@ function sha256(source: string): string {
 }
 
 describe('target inventory integration', () => {
-	test('contains both adjudicated targets', () => {
-		expect(TARGET_INVENTORY).toHaveLength(2);
+	test('contains the adjudicated targets', () => {
+		expect(TARGET_INVENTORY).toHaveLength(3);
 	});
 
 	test.each(TARGET_INVENTORY)(

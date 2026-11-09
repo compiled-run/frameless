@@ -6,6 +6,7 @@ export interface TargetInventoryEntry {
 export const TARGET_INVENTORY = [
 	{ name: 'react', packageSpecifier: '@frameless/react' },
 	{ name: 'solid', packageSpecifier: '@frameless/solid' },
+	{ name: 'solid-2', packageSpecifier: '@frameless/solid/v2' },
 ] as const satisfies readonly TargetInventoryEntry[];
 
 export const PROGRAM_USAGE = [
@@ -15,7 +16,7 @@ export const PROGRAM_USAGE = [
 	'  frameless build <input.tsrx> [input.tsrx ...] --target <name> [--target <name>] --out-dir <dir>',
 	'',
 	'Options:',
-	'  --target <name>  Build react or solid. Repeat to build both.',
+	'  --target <name>  Build react, solid, or solid-2. Repeat to build several.',
 	'                   Duplicate targets are ignored.',
 	'  --out-dir <dir>  Write each target beneath <dir>/<target>/.',
 	'  --help           Show this help.',

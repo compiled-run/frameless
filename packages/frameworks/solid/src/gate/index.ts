@@ -8,6 +8,11 @@ import * as tsParser from '@typescript-eslint/parser';
 import type { EnrichedIR } from '@frameless/compiler';
 import { emit } from '../emitter/index.ts';
 import { formatEmitted } from '../format-emitted.ts';
+import {
+	isSolid2Source,
+	resolveSolidGeneration,
+	type SolidGeneration,
+} from '../generation.ts';
 import { parse } from 'yuku-parser';
 import { dirname, normalize, relative, resolve } from 'pathe';
 import { customPolicies } from './custom-policies.ts';
@@ -447,10 +452,11 @@ async function provenanceViolations(
 	source: string,
 	file: string,
 	artifact: EnrichedIR,
+	generation: SolidGeneration,
 ): Promise<GateViolation[]> {
 	const [actual, expected] = await Promise.all([
 		formatEmitted(source),
-		formatEmitted(emit(artifact)),
+		formatEmitted(emit(artifact, { generation })),
 	]);
 	const violations: GateViolation[] = [];
 	const actualProgram = parseModule(actual);
@@ -576,7 +582,7 @@ function persistenceEffectViolations(source: string, file: string): GateViolatio
 		if (
 			node.type !== 'CallExpression' ||
 			node.callee?.type !== 'Identifier' ||
-			!['createEffect', 'onMount'].includes(node.callee.name)
+			!['createEffect', 'onMount', 'onSettled'].includes(node.callee.name)
 		)
 			return;
 		let readsPersistence = false;
@@ -756,7 +762,7 @@ export function withoutTypeOnlyParameterReports<
 	);
 }
 
-function makeEslint(cwd: string): ESLint {
+function makeEslint(cwd: string, generation: SolidGeneration): ESLint {
 	const plugin = solidPlugin as unknown as {
 		configs?: Record<string, any>;
 		default?: { configs?: Record<string, any> };
@@ -806,6 +812,10 @@ function makeEslint(cwd: string): ESLint {
 						},
 					],
 					'no-unused-expressions': 'error',
+					// eslint-plugin-solid's import rule is a Solid 1 idiom:
+					// "prefer solid-js/store". Solid 2 moved those exports onto
+					// solid-js, so the rule is inverted for generation 2.
+					...(generation === '2' ? { 'solid/imports': 'off' } : {}),
 				},
 			},
 		] as any,
@@ -818,13 +828,16 @@ export async function checkSources(
 		readonly source: string;
 		readonly artifact?: EnrichedIR;
 	}>,
-	options: { readonly cwd?: string } = {},
+	options: { readonly cwd?: string; readonly generation?: SolidGeneration } = {},
 ): Promise<GateResult> {
 	const cwd = resolve(options.cwd ?? PACKAGE_ROOT);
-	const eslint = makeEslint(cwd);
 	const violations: GateViolation[] = [];
 	const unevaluatedPolicies = new Set<string>();
 	for (const { file, source, artifact } of entries) {
+		const generation = resolveSolidGeneration({
+			generation: options.generation ?? (isSolid2Source(source) ? '2' : '1'),
+		});
+		const eslint = makeEslint(cwd, generation);
 		try {
 			violations.push(
 				...customPolicies(
@@ -832,6 +845,7 @@ export async function checkSources(
 					file,
 					violation,
 					recordedRelativeImportSpecifiers(artifact),
+					generation,
 				),
 			);
 		} catch (error) {
@@ -846,7 +860,7 @@ export async function checkSources(
 			const persistenceViolations = persistenceLoweringViolations(file, artifact);
 			if (persistenceViolations) violations.push(...persistenceViolations);
 			else unevaluatedPolicies.add('persistence-render-lowering');
-			violations.push(...(await provenanceViolations(source, file, artifact)));
+			violations.push(...(await provenanceViolations(source, file, artifact, generation)));
 		}
 		else {
 			// An artifact-less relative import is present but unverifiable. That is a

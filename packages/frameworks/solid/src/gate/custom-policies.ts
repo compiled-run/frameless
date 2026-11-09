@@ -1,28 +1,49 @@
 import { analyze, type Module, type Symbol as YukuSymbol } from 'yuku-analyzer';
 import { parse } from 'yuku-parser';
+import type { SolidGeneration } from '../generation.ts';
 import type { GateViolation } from './index.ts';
 
 type Node = any;
 type Violate = (file: string, policy: string, message: string, node?: Node) => GateViolation;
 type Imported = { readonly source: string; readonly imported: string };
-const ALLOWED_IMPORTS = new Map([
-	[
-		'solid-js',
-		new Set([
-			'createSignal',
-			'untrack',
-			'For',
-			'Show',
-			'createContext',
-			'useContext',
-			'createEffect',
-			'onMount',
-			'onCleanup',
-		]),
-	],
-	['solid-js/store', new Set(['createStore', 'produce', 'reconcile'])],
+const SOLID_JS_V1 = new Set([
+	'createSignal',
+	'untrack',
+	'For',
+	'Show',
+	'createContext',
+	'useContext',
+	'createEffect',
+	'onMount',
+	'onCleanup',
 ]);
-const EFFECTS = new Set(['createEffect', 'createRenderEffect', 'createComputed', 'onMount']);
+const SOLID_JS_V2 = new Set([
+	'createSignal',
+	'untrack',
+	'For',
+	'Show',
+	'createContext',
+	'useContext',
+	'createEffect',
+	'onSettled',
+	'onCleanup',
+	'createStore',
+	'reconcile',
+]);
+function allowedImports(generation: SolidGeneration): Map<string, Set<string>> {
+	if (generation === '2') return new Map([['solid-js', SOLID_JS_V2]]);
+	return new Map([
+		['solid-js', SOLID_JS_V1],
+		['solid-js/store', new Set(['createStore', 'produce', 'reconcile'])],
+	]);
+}
+const EFFECTS = new Set([
+	'createEffect',
+	'createRenderEffect',
+	'createComputed',
+	'onMount',
+	'onSettled',
+]);
 const is = (node: unknown, type: string, properties?: Record<string, unknown>): boolean =>
 	Boolean(
 		node &&
@@ -136,6 +157,7 @@ export function customPolicies(
 	file: string,
 	makeViolation: Violate,
 	recordedRelativeImports: ReadonlySet<string> = new Set(),
+	generation: SolidGeneration = '1',
 ): GateViolation[] {
 	// `tsx`, NOT `jsx`. This gate reads EMITTED `.tsx`, which carries an IR-8 props
 	// type annotation from `frameless-emitter-capability-v1` T014 onward. Measured
@@ -419,16 +441,21 @@ export function customPolicies(
 							is(write, 'CallExpression') && is(write.callee, 'Identifier')
 								? imports.get(module.symbolOf(write.callee)!)?.imported
 								: null;
-						if (
-							node.arguments.length !== 1 ||
-							!primitive ||
-							!['produce', 'reconcile'].includes(primitive)
-						)
+						const isDraft =
+							is(write, 'ArrowFunctionExpression') ||
+							is(write, 'FunctionExpression');
+						const allowed =
+							generation === '2'
+								? primitive === 'reconcile' || isDraft
+								: primitive === 'produce' || primitive === 'reconcile';
+						if (node.arguments.length !== 1 || !allowed)
 							violations.push(
 								violation(
 									file,
 									'store-write-shape',
-									'Store writes require one produce or reconcile operation',
+									generation === '2'
+										? 'Store writes require one draft callback or reconcile operation'
+										: 'Store writes require one produce or reconcile operation',
 									node,
 								),
 							);
@@ -478,7 +505,7 @@ export function customPolicies(
 	module.walk({
 		ImportDeclaration(node: Node) {
 			if (recordedRelativeImports.has(node.source.value)) return;
-			const allowed = ALLOWED_IMPORTS.get(node.source.value);
+			const allowed = allowedImports(generation).get(node.source.value);
 			if (!allowed) {
 				violations.push(
 					violation(
@@ -649,7 +676,29 @@ export function customPolicies(
 				const checked = attribute(node, 'checked');
 				const live = value ? expressionValue(value.value) : null;
 				const attr = attrValue ? expressionValue(attrValue.value) : null;
-				if (value && (!onInput || !attrValue || !live || !attr || !equivalent(live, attr)))
+				if (generation === '2') {
+					if (value && (!onInput || !live))
+						violations.push(
+							violation(
+								file,
+								'controlled-input',
+								'Controlled text value requires onInput',
+								node,
+							),
+						);
+					if (attrValue)
+						violations.push(
+							violation(
+								file,
+								'controlled-input',
+								'attr:value is removed in Solid 2; emit the live value binding only',
+								node,
+							),
+						);
+				} else if (
+					value &&
+					(!onInput || !attrValue || !live || !attr || !equivalent(live, attr))
+				)
 					violations.push(
 						violation(
 							file,
@@ -667,7 +716,7 @@ export function customPolicies(
 							node,
 						),
 					);
-				if (attrValue && !value)
+				if (generation === '1' && attrValue && !value)
 					violations.push(
 						violation(
 							file,

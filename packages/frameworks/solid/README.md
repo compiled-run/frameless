@@ -17,20 +17,20 @@ from `@frameless/solid/adapter`; that subpath does not import the node-only emit
 | Enriched IR construct       | T003 ruling | Emitted Solid pattern                                                                                                                                              |
 | --------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Scalar visible state        | 1           | `createSignal`; reads call the accessor and every authored write becomes an ordered setter call.                                                                   |
-| Object/array member state   | 1           | `createStore`; keyed-repeat participation also classifies compiler-normalized `unknown` collection initializers as stores.                                         |
+| Object/array member state   | 1           | `createStore` (from `solid-js/store` in Solid 1, from `solid-js` in Solid 2); keyed-repeat participation also classifies compiler-normalized `unknown` collection initializers as stores. |
 | Cheap computed binding      | 2           | Plain zero-argument derived arrow. `createMemo` is never imported or emitted in v0.                                                                                |
 | Store row binding           | 3           | Bare `row.member` reads under `<For>`; no whole-collection accessor refresh hack.                                                                                  |
-| Member edit                 | 1, 3        | `setStore(produce(draft => ...))`, preserving the reused proxy row and its property-level subscription.                                                            |
+| Member edit                 | 1, 3        | Solid 1: `setStore(produce(draft => ...))`. Solid 2: `setStore(draft => ...)` (produce is the default setter shape). Preserves the reused proxy row and its property-level subscription. |
 | Structural collection write | 1, 4        | `setStore(reconcile(next, { key: "<IR key>" }))`; the literal is derived from the keyed-repeat record.                                                             |
 | Keyed repeat                | 4           | `<For each={store}>`; the gate checks keyed reconcile/row consistency and the emitter metamorphic test proves the IR key drives output.                            |
 | Structural branch           | 5           | Two-arm `<Show when fallback>`; following siblings are emitted once after the Show rather than copied into both arms.                                              |
 | Event handler               | 6           | Delegated camel-case `onX`, `event.currentTarget` for leaf controls, and setter calls in authored order. No SSA collapse or `batch`.                               |
-| Text control                | 7           | Identical `value` and `attr:value` expressions plus `onInput`.                                                                                                     |
+| Text control                | 7           | Solid 1: identical `value` and `attr:value` expressions plus `onInput`. Solid 2: `value` plus `onInput` only (`attr:` is removed).                                 |
 | Checkbox control            | 7           | `checked` plus `onChange`.                                                                                                                                         |
 | Props and once-local        | 8           | Reactive reads stay `props.path`; prop-reading setup initializers and once-captures use `untrack(() => ...)`.                                                      |
 | Invisible scalar cell       | 9           | Plain component-local `let`; it is never rendered.                                                                                                                 |
 | Component/module            | 10          | One named exported PascalCase function, one props identifier only when records contain prop reads, `.jsx`, `class`/`for`, and only dossier-allowed Solid imports. |
-| Forward ledger              | 11          | v0 retains the recorded v2 migration debt: For child accessors, attr namespace removal, store API moves, microtask batching recalibration, adapter relocation, and the generated `useX`-with-throw context accessor (Solid 2 RFC: drop the wrapper, call `useContext` directly — composition-era addition). |
+| Forward ledger              | 11          | Generation 2 discharges attr-namespace removal, store import relocation, and dropping the `produce` wrapper. Remaining v2 debt: For `keyed={fn}` accessor children, microtask batching recalibration, adapter relocation onto `@solidjs/web`, and the generated `useX`-with-throw context accessor (Solid 2 RFC: drop the wrapper, call `useContext` directly). |
 
 ## Fail-closed boundary and binding safety
 
@@ -93,16 +93,20 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 
 ## Framework-version honesty
 
-The executable package lane is named exactly `solid-1.8.22-fallback` and pins Solid 1.8.22 with
-`vite-plugin-solid` 2.11.10. The T003 research ledger was refreshed against Solid
-`v2.0.0-beta.9`, superseding the POC's older experimental.16 blocker evidence, but this package is
-**not Solid 2 runtime-validated**. Its v2 items remain recorded migration work; the fallback browser
-lane must not be reported as Solid 2 evidence.
+Solid 1.x remains the default target because `solid-js@latest` is still 1.9.x. The executable
+browser lane is named exactly `solid-1.8.22-fallback` and pins Solid 1.8.22 with
+`vite-plugin-solid` 2.11.10. That lane must not be reported as Solid 2 evidence.
 
-Solid 2 blocker evidence: beta.9 removes the `./web` and `./store` subpath exports that the v1
-toolchain output links against. `test/solid2-blocker.test.ts` is the executable contract; if a
-future Solid 2 pin restores either export or its replacement toolchain links successfully through
-the JSX runtime model, revisit the v1-fallback decision.
+Solid 2 RC is a second, explicit generation: `emit(ir, { generation: '2' })` or the CLI target
+`solid-2` (`@frameless/solid/v2`). It is source-complete against `solid-js@2.0.0-rc.21`: store APIs
+come from `solid-js`, `produce` wrappers are dropped (setters are draft-first), and `attr:value` is
+not emitted. It is **not** browser-runtime-validated yet — `@solidjs/web` and `@solidjs/vite-plugin`
+are the replacement toolchain, but this package's Vitest browser project still runs the 1.8.22
+fallback.
+
+`test/solid2-blocker.test.ts` is the executable contract for the RC pin. Solid 2 still does not
+export `./web` or `./store`; the v2 emitter no longer links those paths. Default stays on v1 until
+Solid 2 has been `latest` for a decent stretch; that is when the v1 lowering moves to versionless.
 
 ## Generality boundary
 
