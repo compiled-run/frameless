@@ -8,10 +8,11 @@ import {
 } from '../src/index.ts';
 
 describe('target inventory', () => {
-	test('registers exactly the React and Solid framework packages', () => {
+	test('registers the React, Solid 1, and Solid 2 framework packages', () => {
 		expect(TARGET_INVENTORY).toEqual([
 			{ name: 'react', packageSpecifier: '@frameless/react' },
 			{ name: 'solid', packageSpecifier: '@frameless/solid' },
+			{ name: 'solid-2', packageSpecifier: '@frameless/solid/v2' },
 		]);
 	});
 });
@@ -100,7 +101,7 @@ describe('program argument parsing', () => {
 					'  frameless build <input.tsrx> [input.tsrx ...] --target <name> [--target <name>] --out-dir <dir>',
 					'',
 					'Options:',
-					'  --target <name>  Build react or solid. Repeat to build both.',
+					'  --target <name>  Build react, solid, or solid-2. Repeat to build several.',
 					'                   Duplicate targets are ignored.',
 					'  --out-dir <dir>  Write each target beneath <dir>/<target>/.',
 					'  --help           Show this help.',
@@ -122,7 +123,7 @@ describe('program argument parsing', () => {
 		],
 		[
 			['build', 'button.tsrx', '--target', 'vue', '--out-dir', 'dist'],
-			'Unknown target vue (known: react, solid)',
+			'Unknown target vue (known: react, solid, solid-2)',
 		],
 		[['build', 'button.tsrx', '--out-dir', 'dist'], 'At least one --target is required'],
 	] as const)('reports %s as a one-line error', (args, message) => {

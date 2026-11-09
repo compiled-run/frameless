@@ -3,6 +3,12 @@ import type { EnrichedIR } from '@frameless/compiler';
 import { resolve } from 'pathe';
 import { emit } from '../src/emitter/index.ts';
 import { formatEmitted } from '../src/format-emitted.ts';
+import { resolveSolidGeneration, type SolidGeneration } from '../src/generation.ts';
+
+const generation: SolidGeneration = resolveSolidGeneration({
+	generation: process.argv.includes('--generation=2') ? '2' : '1',
+});
+const outputDirectory = generation === '2' ? 'generated-v2' : 'generated';
 
 const root = resolve(import.meta.dirname, '..');
 const goldenRoot = resolve(root, '../../compiler/test/goldens');
@@ -170,8 +176,11 @@ const fixtures = [
 	['S17.tsx', 's17-contacts.json'],
 ] as const;
 
-await mkdir(resolve(root, 'generated'), { recursive: true });
+await mkdir(resolve(root, outputDirectory), { recursive: true });
 for (const [output, golden] of fixtures) {
 	const ir = JSON.parse(await readFile(resolve(goldenRoot, golden), 'utf8')) as EnrichedIR;
-	await writeFile(resolve(root, 'generated', output), await formatEmitted(emit(ir)));
+	await writeFile(
+		resolve(root, outputDirectory, output),
+		await formatEmitted(emit(ir, { generation })),
+	);
 }

@@ -314,7 +314,7 @@ function snapshotKeysFor(lockfileText: string, id: string): string[] {
 		.sort();
 }
 
-// ARM A. MEASURED off this lockfile, not predicted. 66 entries.
+// ARM A. MEASURED off this lockfile, not predicted. 67 entries.
 //
 // ON THE NUMBER: the T007 ruling recorded "46". That figure is NOT reproducible
 // under a nesting-correct read and the ruling's own §5.3 says its probe carried
@@ -379,6 +379,7 @@ const PEER_ATOMS = [
 	'rxjs@7.8.2',
 	'sass@1.99.0',
 	'seroval@1.5.6',
+	'seroval@1.7.0',
 	'solid-js@1.8.22',
 	'srvx@0.11.22',
 	'svelte@5.56.8',

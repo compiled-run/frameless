@@ -3,6 +3,9 @@ import { createRequire } from 'node:module';
 import { resolve } from 'pathe';
 import { describe, expect, test } from 'vitest';
 import { parse } from 'yuku-parser';
+import type { EnrichedIR } from '@frameless/compiler';
+import { emit } from '../src/emitter/index.ts';
+import { formatEmitted } from '../src/format-emitted.ts';
 
 // `tsx`, NOT `jsx`, AT EVERY SITE IN THIS FILE THAT PARSES EMITTED OUTPUT.
 // The artifact became `.tsx` at `frameless-emitter-capability-v1` T009/T011 and
@@ -11,6 +14,7 @@ import { parse } from 'yuku-parser';
 // typed props parameter, so a stale `jsx` here fails on VALID output.
 
 const root = resolve(import.meta.dirname, '..');
+const goldenRoot = resolve(root, '../../compiler/test/goldens');
 const nodeRequire = createRequire(import.meta.url);
 
 interface BabelCore {
@@ -41,29 +45,27 @@ function resolutionErrorCode(specifier: string): string | undefined {
 	}
 }
 
-async function betaManifest(): Promise<PackageManifest> {
+async function rcManifest(): Promise<PackageManifest> {
 	return JSON.parse(
-		await readFile(nodeRequire.resolve('solid-beta9/package.json'), 'utf8'),
+		await readFile(nodeRequire.resolve('solid-2/package.json'), 'utf8'),
 	) as PackageManifest;
 }
 
-describe('Solid 2 toolchain blocker contract', () => {
-	test('pins the T003 evidence runtime and its JSX-runtime migration path', async () => {
-		// T003 uses Solid 2.0.0-beta.9 as its evidence base.
-		const manifest = await betaManifest();
-		expect(manifest.version).toBe('2.0.0-beta.9');
-
-		// Solid 2's toolchain moves to the JSX runtime model.
-		expect(Object.keys(manifest.exports)).toContain('./jsx-runtime');
+describe('Solid 2 toolchain contract', () => {
+	test('pins the current Solid 2 RC evidence runtime', async () => {
+		const manifest = await rcManifest();
+		expect(manifest.version).toBe('2.0.0-rc.21');
+		expect(Object.keys(manifest.exports)).not.toContain('./jsx-runtime');
+		expect(Object.keys(manifest.exports)).not.toContain('./web');
+		expect(Object.keys(manifest.exports)).not.toContain('./store');
 	});
 
-	test('emitted S2 output links to the Solid 1 store subpath', async () => {
+	test('default emitted S2 output still links to the Solid 1 store subpath', async () => {
 		const source = await readFile(resolve(root, 'generated/S2.tsx'), 'utf8');
 		expect(importSources(source)).toContain('solid-js/store');
 	});
 
 	test('the installed Solid 1 JSX toolchain links DOM output to the web subpath', async () => {
-		// @babel/core and babel-preset-solid are the Solid v1 toolchain under contract test.
 		const presetPath = nodeRequire.resolve('babel-preset-solid');
 		const presetRequire = createRequire(presetPath);
 		const { transformAsync } = presetRequire('@babel/core') as BabelCore;
@@ -82,13 +84,20 @@ describe('Solid 2 toolchain blocker contract', () => {
 		expect(importSources(result?.code ?? '')).toContain('solid-js/web');
 	});
 
-	test('beta.9 cannot link the v1 web or store dependencies', () => {
+	test('Solid 2 RC still does not export the v1 web or store subpaths', () => {
 		expect(nodeRequire.resolve('solid-js/web')).toBeTypeOf('string');
 		expect(nodeRequire.resolve('solid-js/store')).toBeTypeOf('string');
+		expect(resolutionErrorCode('solid-2/web')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+		expect(resolutionErrorCode('solid-2/store')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+	});
 
-		// OVERTURN TRIGGER: revisit the v1 fallback when a future Solid 2 pin exports
-		// these paths or its replacement toolchain no longer emits them.
-		expect(resolutionErrorCode('solid-beta9/web')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
-		expect(resolutionErrorCode('solid-beta9/store')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+	test('generation 2 S2 output no longer links the removed v1 subpaths', async () => {
+		const ir = JSON.parse(
+			await readFile(resolve(goldenRoot, 's2-keyed-todo.json'), 'utf8'),
+		) as EnrichedIR;
+		const source = await formatEmitted(emit(ir, { generation: '2' }));
+		expect(importSources(source)).toEqual(['solid-js']);
+		expect(importSources(source)).not.toContain('solid-js/store');
+		expect(importSources(source)).not.toContain('solid-js/web');
 	});
 });
