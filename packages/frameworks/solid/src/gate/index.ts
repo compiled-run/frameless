@@ -8,6 +8,7 @@ import * as tsParser from '@typescript-eslint/parser';
 import type { EnrichedIR } from '@frameless/compiler';
 import { emit } from '../emitter/index.ts';
 import { formatEmitted } from '../format-emitted.ts';
+import { resolveSolidGeneration, type SolidGeneration } from '../generation.ts';
 import { parse } from 'yuku-parser';
 import { dirname, normalize, relative, resolve } from 'pathe';
 import { customPolicies } from './custom-policies.ts';
@@ -447,10 +448,11 @@ async function provenanceViolations(
 	source: string,
 	file: string,
 	artifact: EnrichedIR,
+	generation: SolidGeneration,
 ): Promise<GateViolation[]> {
 	const [actual, expected] = await Promise.all([
 		formatEmitted(source),
-		formatEmitted(emit(artifact)),
+		formatEmitted(emit(artifact, { generation })),
 	]);
 	const violations: GateViolation[] = [];
 	const actualProgram = parseModule(actual);
@@ -576,7 +578,7 @@ function persistenceEffectViolations(source: string, file: string): GateViolatio
 		if (
 			node.type !== 'CallExpression' ||
 			node.callee?.type !== 'Identifier' ||
-			!['createEffect', 'onMount'].includes(node.callee.name)
+			!['createEffect', 'onMount', 'onSettled'].includes(node.callee.name)
 		)
 			return;
 		let readsPersistence = false;
@@ -598,7 +600,7 @@ function persistenceEffectViolations(source: string, file: string): GateViolatio
 				violation(
 					file,
 					'persistence-render-lowering',
-					'Persistence seed reads must not run in createEffect or onMount',
+					'Persistence seed reads must not run in createEffect, onMount, or onSettled',
 					node,
 				),
 			);
@@ -695,10 +697,14 @@ function typeOnlyParameterPositions(source: string): Set<string> {
 	const positions = new Set<string>();
 	let tree: unknown;
 	try {
-		tree = (tsParser as unknown as { parse: (code: string, options: unknown) => unknown }).parse(
-			source,
-			{ ecmaFeatures: { jsx: true }, ecmaVersion: 'latest', sourceType: 'module', loc: true },
-		);
+		tree = (
+			tsParser as unknown as { parse: (code: string, options: unknown) => unknown }
+		).parse(source, {
+			ecmaFeatures: { jsx: true },
+			ecmaVersion: 'latest',
+			sourceType: 'module',
+			loc: true,
+		});
 	} catch {
 		// A source this parser cannot read is already an `eslint:parse` violation;
 		// suppressing nothing is the fail-closed answer.
@@ -722,8 +728,7 @@ function typeOnlyParameterPositions(source: string): Set<string> {
 			return (entry.properties as unknown[]).forEach((property) =>
 				record((property as Record<string, any>).value ?? property),
 			);
-		if (entry.type === 'ArrayPattern')
-			return (entry.elements as unknown[]).forEach(record);
+		if (entry.type === 'ArrayPattern') return (entry.elements as unknown[]).forEach(record);
 		if (entry.type === 'Identifier' && entry.loc?.start)
 			positions.add(`${entry.loc.start.line}:${entry.loc.start.column + 1}`);
 	};
@@ -756,7 +761,7 @@ export function withoutTypeOnlyParameterReports<
 	);
 }
 
-function makeEslint(cwd: string): ESLint {
+function makeEslint(cwd: string, generation: SolidGeneration = '1'): ESLint {
 	const plugin = solidPlugin as unknown as {
 		configs?: Record<string, any>;
 		default?: { configs?: Record<string, any> };
@@ -806,6 +811,9 @@ function makeEslint(cwd: string): ESLint {
 						},
 					],
 					'no-unused-expressions': 'error',
+					// eslint-plugin-solid 0.14.5 is a Solid 1 arbiter. Generation 2
+					// store APIs live on `solid-js`; the custom allowlist owns that.
+					...(generation === '2' ? { 'solid/imports': 'off' } : {}),
 				},
 			},
 		] as any,
@@ -818,10 +826,11 @@ export async function checkSources(
 		readonly source: string;
 		readonly artifact?: EnrichedIR;
 	}>,
-	options: { readonly cwd?: string } = {},
+	options: { readonly cwd?: string; readonly generation?: SolidGeneration } = {},
 ): Promise<GateResult> {
 	const cwd = resolve(options.cwd ?? PACKAGE_ROOT);
-	const eslint = makeEslint(cwd);
+	const generation = resolveSolidGeneration(options);
+	const eslint = makeEslint(cwd, generation);
 	const violations: GateViolation[] = [];
 	const unevaluatedPolicies = new Set<string>();
 	for (const { file, source, artifact } of entries) {
@@ -832,6 +841,7 @@ export async function checkSources(
 					file,
 					violation,
 					recordedRelativeImportSpecifiers(artifact),
+					generation,
 				),
 			);
 		} catch (error) {
@@ -846,9 +856,8 @@ export async function checkSources(
 			const persistenceViolations = persistenceLoweringViolations(file, artifact);
 			if (persistenceViolations) violations.push(...persistenceViolations);
 			else unevaluatedPolicies.add('persistence-render-lowering');
-			violations.push(...(await provenanceViolations(source, file, artifact)));
-		}
-		else {
+			violations.push(...(await provenanceViolations(source, file, artifact, generation)));
+		} else {
 			// An artifact-less relative import is present but unverifiable. That is a
 			// violation, not unevaluated: undisclosed-import itself always ran above.
 			for (const policy of SOLID_GATE_POLICIES)
@@ -884,12 +893,16 @@ export async function checkSources(
 }
 
 export async function checkGeneratedFiles(
-	options: { readonly cwd?: string; readonly directory?: string } = {},
+	options: {
+		readonly cwd?: string;
+		readonly directory?: string;
+		readonly generation?: SolidGeneration;
+	} = {},
 ): Promise<GateResult> {
 	const cwd = resolve(options.cwd ?? PACKAGE_ROOT);
 	const files = await discoverGeneratedFiles({ cwd, directory: options.directory });
 	const entries = await Promise.all(
 		files.map(async (file) => ({ file, source: await readFile(resolve(cwd, file), 'utf8') })),
 	);
-	return checkSources(entries, { cwd });
+	return checkSources(entries, { cwd, generation: options.generation });
 }

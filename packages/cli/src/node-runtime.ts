@@ -63,7 +63,10 @@ export async function executeBuildPlan(plan: BuildPlan, workingDirectory: string
 export async function executeBuildPlanInternal(
 	plan: BuildPlan,
 	workingDirectory: string,
-	loadTarget: (packageSpecifier: string) => Promise<LoadedFrameworkTarget>,
+	loadTarget: (
+		packageSpecifier: string,
+		moduleSpecifier?: string,
+	) => Promise<LoadedFrameworkTarget>,
 ): Promise<void> {
 	const cwd = resolve(workingDirectory);
 	const { buildEnrichedIr, resolveModuleSet } = await import('@frameless/compiler');
@@ -90,6 +93,7 @@ export async function executeBuildPlanInternal(
 			loadTarget,
 			target.name,
 			target.packageSpecifier,
+			target.moduleSpecifier,
 		);
 		const { framework, resolvedPackage } = loadedTarget;
 		const outputDirectory = resolveFrom(cwd, target.outputDirectory);
@@ -310,8 +314,11 @@ function summarizeLinkTable(linkTable: ModuleSetLinkTable) {
 	};
 }
 
-async function importFrameworkTarget(packageSpecifier: string): Promise<LoadedFrameworkTarget> {
-	const resolvedEntry = createRequire(import.meta.url).resolve(packageSpecifier);
+async function importFrameworkTarget(
+	packageSpecifier: string,
+	moduleSpecifier = packageSpecifier,
+): Promise<LoadedFrameworkTarget> {
+	const resolvedEntry = createRequire(import.meta.url).resolve(moduleSpecifier);
 	return {
 		framework: (await import(pathToFileURL(resolvedEntry).href)) as FrameworkTargetModule,
 		resolvedPackage: await packageIdentity(dirname(resolvedEntry)),
@@ -319,13 +326,17 @@ async function importFrameworkTarget(packageSpecifier: string): Promise<LoadedFr
 }
 
 async function loadAndAssertTarget(
-	loadTarget: (packageSpecifier: string) => Promise<LoadedFrameworkTarget>,
+	loadTarget: (
+		packageSpecifier: string,
+		moduleSpecifier?: string,
+	) => Promise<LoadedFrameworkTarget>,
 	targetName: string,
 	packageSpecifier: string,
+	moduleSpecifier?: string,
 ): Promise<LoadedFrameworkTarget> {
 	let loadedTarget: LoadedFrameworkTarget;
 	try {
-		loadedTarget = await loadTarget(packageSpecifier);
+		loadedTarget = await loadTarget(packageSpecifier, moduleSpecifier);
 	} catch (error) {
 		throw new Error(
 			`Target ${targetName} package ${packageSpecifier} failed to load: ${errorMessage(error)}`,

@@ -35,15 +35,15 @@ function sha256(source: string): string {
 }
 
 describe('target inventory integration', () => {
-	test('contains both adjudicated targets', () => {
-		expect(TARGET_INVENTORY).toHaveLength(2);
+	test('contains the React, Solid 1, and Solid 2 targets', () => {
+		expect(TARGET_INVENTORY).toHaveLength(3);
 	});
 
 	test.each(TARGET_INVENTORY)(
 		'$name exposes its emitter, formatter, validator, and gate',
 		async (target) => {
 			const framework = (await import(
-				target.packageSpecifier
+				target.moduleSpecifier ?? target.packageSpecifier
 			)) as Partial<FrameworkTargetModule>;
 
 			expect(framework.emit).toBeTypeOf('function');
@@ -111,6 +111,45 @@ test('builds the proven S1 fixture for both targets and records hashes and deleg
 			'vitest browser lanes (react-browser, solid-browser; cross-target lane per T010)',
 		command: 'pnpm test:browser',
 	});
+});
+
+test('builds the proven S1 fixture for solid-2 and keeps the receipt on @frameless/solid', async () => {
+	const cwd = await temporaryDirectory();
+	const fixture = new URL('./fixtures/s1-render-once.tsrx', import.meta.url);
+	const input = await readFile(fixture, 'utf8');
+	await writeFile(join(cwd, 's1-render-once.tsrx'), input);
+	const parsed = parseProgramArgs([
+		'build',
+		's1-render-once.tsrx',
+		'--target',
+		'solid-2',
+		'--out-dir',
+		'output',
+	]);
+	if (parsed.command !== 'build') throw new Error('Expected build arguments.');
+
+	await executeBuildPlan(createBuildPlan(parsed), cwd);
+
+	const solidPath = join(cwd, 'output/solid-2/s1-render-once.tsx');
+	const [solid, receiptSource] = await Promise.all([
+		readFile(solidPath, 'utf8'),
+		readFile(join(cwd, 'output/frameless-build-receipt.json'), 'utf8'),
+	]);
+	const receipt = validateBuildReceipt(JSON.parse(receiptSource));
+	const target = receipt.targets['solid-2'];
+
+	expect(solid).toContain('@frameless/solid (solid-2)');
+	expect(solid).not.toContain('solid-js/store');
+	expect(solid).not.toContain('attr:value');
+	expect(target?.gate.violations).toEqual([]);
+	expect(target?.resolvedPackage).toEqual({
+		name: '@frameless/solid',
+		version: '0.0.0',
+	});
+	expect(target?.packageSpecifier).toBe('@frameless/solid');
+	expect(target?.emittedContentSha256).toBe(sha256(solid));
+	const { formatEmitted } = await import('@frameless/solid/v2');
+	expect(await formatEmitted(solid)).toBe(solid);
 });
 
 test('rejects a seam-loaded fake that tries to issue a receipt for @frameless/react', async () => {
