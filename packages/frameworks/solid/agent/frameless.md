@@ -13,6 +13,8 @@ the browser analyzer adapter.
 3. Treat `generated/*.jsx` as output. Change the structural emitter or gate and regenerate; never
    hand-edit component behavior.
 4. Keep the runtime label `solid-1.8.22-fallback`. Do not describe this lane as Solid 2 validation.
+   `emit(ir, { generation: '2' })` and the CLI target `solid-2` are source-shape Solid 2 RC output
+   only. Leave Solid 1 as the default until Solid 2 has been npm `latest` for a decent stretch.
 
 ## Dossier invariants
 
