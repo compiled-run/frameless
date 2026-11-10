@@ -1,28 +1,57 @@
 import { analyze, type Module, type Symbol as YukuSymbol } from 'yuku-analyzer';
 import { parse } from 'yuku-parser';
+import type { SolidGeneration } from '../generation.ts';
 import type { GateViolation } from './index.ts';
 
 type Node = any;
 type Violate = (file: string, policy: string, message: string, node?: Node) => GateViolation;
 type Imported = { readonly source: string; readonly imported: string };
-const ALLOWED_IMPORTS = new Map([
-	[
-		'solid-js',
-		new Set([
-			'createSignal',
-			'untrack',
-			'For',
-			'Show',
-			'createContext',
-			'useContext',
-			'createEffect',
-			'onMount',
-			'onCleanup',
-		]),
-	],
-	['solid-js/store', new Set(['createStore', 'produce', 'reconcile'])],
+function allowedImports(generation: SolidGeneration): Map<string, Set<string>> {
+	if (generation === '2')
+		return new Map([
+			[
+				'solid-js',
+				new Set([
+					'createSignal',
+					'createStore',
+					'reconcile',
+					'untrack',
+					'For',
+					'Show',
+					'createContext',
+					'useContext',
+					'createEffect',
+					'onSettled',
+					'onCleanup',
+					'flush',
+				]),
+			],
+		]);
+	return new Map([
+		[
+			'solid-js',
+			new Set([
+				'createSignal',
+				'untrack',
+				'For',
+				'Show',
+				'createContext',
+				'useContext',
+				'createEffect',
+				'onMount',
+				'onCleanup',
+			]),
+		],
+		['solid-js/store', new Set(['createStore', 'produce', 'reconcile'])],
+	]);
+}
+const EFFECTS = new Set([
+	'createEffect',
+	'createRenderEffect',
+	'createComputed',
+	'onMount',
+	'onSettled',
 ]);
-const EFFECTS = new Set(['createEffect', 'createRenderEffect', 'createComputed', 'onMount']);
 const is = (node: unknown, type: string, properties?: Record<string, unknown>): boolean =>
 	Boolean(
 		node &&
@@ -136,6 +165,7 @@ export function customPolicies(
 	file: string,
 	makeViolation: Violate,
 	recordedRelativeImports: ReadonlySet<string> = new Set(),
+	generation: SolidGeneration = '1',
 ): GateViolation[] {
 	// `tsx`, NOT `jsx`. This gate reads EMITTED `.tsx`, which carries an IR-8 props
 	// type annotation from `frameless-emitter-capability-v1` T014 onward. Measured
@@ -419,16 +449,22 @@ export function customPolicies(
 							is(write, 'CallExpression') && is(write.callee, 'Identifier')
 								? imports.get(module.symbolOf(write.callee)!)?.imported
 								: null;
-						if (
-							node.arguments.length !== 1 ||
-							!primitive ||
-							!['produce', 'reconcile'].includes(primitive)
-						)
+						const isDraft =
+							generation === '2' &&
+							(is(write, 'ArrowFunctionExpression') ||
+								is(write, 'FunctionExpression'));
+						const allowedWrite =
+							generation === '2'
+								? isDraft || primitive === 'reconcile'
+								: primitive === 'produce' || primitive === 'reconcile';
+						if (node.arguments.length !== 1 || !allowedWrite)
 							violations.push(
 								violation(
 									file,
 									'store-write-shape',
-									'Store writes require one produce or reconcile operation',
+									generation === '2'
+										? 'Store writes require one draft setter or reconcile operation'
+										: 'Store writes require one produce or reconcile operation',
 									node,
 								),
 							);
@@ -478,7 +514,7 @@ export function customPolicies(
 	module.walk({
 		ImportDeclaration(node: Node) {
 			if (recordedRelativeImports.has(node.source.value)) return;
-			const allowed = ALLOWED_IMPORTS.get(node.source.value);
+			const allowed = allowedImports(generation).get(node.source.value);
 			if (!allowed) {
 				violations.push(
 					violation(
@@ -649,7 +685,29 @@ export function customPolicies(
 				const checked = attribute(node, 'checked');
 				const live = value ? expressionValue(value.value) : null;
 				const attr = attrValue ? expressionValue(attrValue.value) : null;
-				if (value && (!onInput || !attrValue || !live || !attr || !equivalent(live, attr)))
+				if (generation === '2') {
+					if (value && !onInput)
+						violations.push(
+							violation(
+								file,
+								'controlled-input',
+								'Controlled text value requires onInput',
+								node,
+							),
+						);
+					if (attrValue)
+						violations.push(
+							violation(
+								file,
+								'controlled-input',
+								'Solid 2 removed attr: namespaces; do not emit attr:value',
+								node,
+							),
+						);
+				} else if (
+					value &&
+					(!onInput || !attrValue || !live || !attr || !equivalent(live, attr))
+				)
 					violations.push(
 						violation(
 							file,
@@ -667,7 +725,7 @@ export function customPolicies(
 							node,
 						),
 					);
-				if (attrValue && !value)
+				if (generation !== '2' && attrValue && !value)
 					violations.push(
 						violation(
 							file,
@@ -715,10 +773,12 @@ export function customPolicies(
 			module.walk(
 				{
 					MemberExpression(member: Node) {
-						if (
-							is(member.object, 'Identifier') &&
-							module.symbolOf(member.object) === rowSymbol
-						) {
+						const object =
+							is(member.object, 'CallExpression') &&
+							member.object.arguments.length === 0
+								? member.object.callee
+								: member.object;
+						if (is(object, 'Identifier') && module.symbolOf(object) === rowSymbol) {
 							const name = propertyName(member);
 							if (name) rowProperties.add(name);
 						}

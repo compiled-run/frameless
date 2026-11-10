@@ -4,11 +4,12 @@ import { resolve } from 'pathe';
 import { describe, expect, test } from 'vitest';
 
 const root = resolve(import.meta.dirname, '../../..');
-const readJson = (path: string) => JSON.parse(readFileSync(resolve(root, path), 'utf8')) as {
-	name?: string;
-	private?: boolean;
-	files?: string[];
-};
+const readJson = (path: string) =>
+	JSON.parse(readFileSync(resolve(root, path), 'utf8')) as {
+		name?: string;
+		private?: boolean;
+		files?: string[];
+	};
 
 describe('T004 package inventory', () => {
 	test('contains the compiler, analyzer, framework packages, and CLI', () => {
@@ -214,7 +215,9 @@ function snapshotKeys(lockfileText: string): string[] {
 	const lines = lockfileText.split('\n');
 	const start = lines.indexOf('snapshots:');
 	if (start === -1) {
-		throw new Error("pnpm-lock.yaml has no 'snapshots:' section - the reader's premise is gone");
+		throw new Error(
+			"pnpm-lock.yaml has no 'snapshots:' section - the reader's premise is gone",
+		);
 	}
 	const keys: string[] = [];
 	for (let index = start + 1; index < lines.length; index += 1) {
@@ -226,12 +229,15 @@ function snapshotKeys(lockfileText: string): string[] {
 		const raw = line.slice(2);
 		const body = raw.endsWith(' {}') ? raw.slice(0, -3) : raw;
 		if (!body.endsWith(':')) {
-			throw new Error(`unparseable pnpm-lock.yaml snapshot key line: ${JSON.stringify(line)}`);
+			throw new Error(
+				`unparseable pnpm-lock.yaml snapshot key line: ${JSON.stringify(line)}`,
+			);
 		}
 		const key = body.slice(0, -1);
 		keys.push(key.startsWith("'") && key.endsWith("'") ? key.slice(1, -1) : key);
 	}
-	if (keys.length === 0) throw new Error("pnpm-lock.yaml 'snapshots:' section parsed to zero keys");
+	if (keys.length === 0)
+		throw new Error("pnpm-lock.yaml 'snapshots:' section parsed to zero keys");
 	return keys;
 }
 
@@ -314,7 +320,7 @@ function snapshotKeysFor(lockfileText: string, id: string): string[] {
 		.sort();
 }
 
-// ARM A. MEASURED off this lockfile, not predicted. 66 entries.
+// ARM A. MEASURED off this lockfile, not predicted. 67 entries.
 //
 // ON THE NUMBER: the T007 ruling recorded "46". That figure is NOT reproducible
 // under a nesting-correct read and the ruling's own §5.3 says its probe carried
@@ -379,6 +385,7 @@ const PEER_ATOMS = [
 	'rxjs@7.8.2',
 	'sass@1.99.0',
 	'seroval@1.5.6',
+	'seroval@1.7.0',
 	'solid-js@1.8.22',
 	'srvx@0.11.22',
 	'svelte@5.56.8',
@@ -400,10 +407,7 @@ const PEER_ATOMS = [
 // that base]. `@qwik.dev/core` legitimately has two, one per Vite it is built
 // against; the pair IS the fact, so the list form is what is asserted.
 const SHARED_CONSUMER_KEYS: ReadonlyArray<readonly [string, readonly string[]]> = [
-	[
-		'vite@8.0.16',
-		['vite@8.0.16(@types/node@24.12.2)(esbuild@0.28.1)(sass@1.99.0)(yaml@2.9.0)'],
-	],
+	['vite@8.0.16', ['vite@8.0.16(@types/node@24.12.2)(esbuild@0.28.1)(sass@1.99.0)(yaml@2.9.0)']],
 	[
 		'vite@7.3.1',
 		['vite@7.3.1(@types/node@24.12.2)(lightningcss@1.32.0)(sass@1.99.0)(yaml@2.9.0)'],
@@ -441,7 +445,9 @@ const SHARED_CONSUMER_KEYS: ReadonlyArray<readonly [string, readonly string[]]> 
 	],
 	[
 		'unstorage@2.0.0-alpha.7',
-		['unstorage@2.0.0-alpha.7(chokidar@5.0.0)(db0@0.3.4)(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3)'],
+		[
+			'unstorage@2.0.0-alpha.7(chokidar@5.0.0)(db0@0.3.4)(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3)',
+		],
 	],
 	[
 		'@async/witness@0.7.0',
@@ -490,7 +496,9 @@ describe('workspace peer-resolution inventory', () => {
 			// red go away: [] === [] would then pass at the moment the consumer
 			// vanished from the workspace.
 			expect(expected.length).toBeGreaterThan(0);
-			expect(snapshotKeysFor(lockfile, id), `peer-suffix key(s) for ${id}`).toEqual([...expected]);
+			expect(snapshotKeysFor(lockfile, id), `peer-suffix key(s) for ${id}`).toEqual([
+				...expected,
+			]);
 		}
 	});
 
@@ -526,7 +534,8 @@ describe('workspace peer-resolution inventory', () => {
 		});
 
 		test('NESTED atoms are read as the OUTER package, not the inner one', () => {
-			const synthetic = 'snapshots:\n\n  vitest@4.1.5(jsdom@28.1.0(@noble/hashes@2.2.0)): {}\n';
+			const synthetic =
+				'snapshots:\n\n  vitest@4.1.5(jsdom@28.1.0(@noble/hashes@2.2.0)): {}\n';
 
 			// THE BUG, PINNED SO IT CANNOT COME BACK. The obvious innermost-parens
 			// match reads this key as `@noble/hashes` and loses `jsdom` completely -

@@ -47,6 +47,12 @@ async function betaManifest(): Promise<PackageManifest> {
 	) as PackageManifest;
 }
 
+async function rcManifest(): Promise<PackageManifest> {
+	return JSON.parse(
+		await readFile(nodeRequire.resolve('solid2/package.json'), 'utf8'),
+	) as PackageManifest;
+}
+
 describe('Solid 2 toolchain blocker contract', () => {
 	test('pins the T003 evidence runtime and its JSX-runtime migration path', async () => {
 		// T003 uses Solid 2.0.0-beta.9 as its evidence base.
@@ -68,15 +74,12 @@ describe('Solid 2 toolchain blocker contract', () => {
 		const presetRequire = createRequire(presetPath);
 		const { transformAsync } = presetRequire('@babel/core') as BabelCore;
 		const solidPreset = nodeRequire('babel-preset-solid');
-		const result = await transformAsync(
-			'export function BlockerProbe() { return <div />; }',
-			{
-				babelrc: false,
-				configFile: false,
-				filename: 'solid2-blocker-probe.tsx',
-				presets: [[solidPreset, { generate: 'dom' }]],
-			},
-		);
+		const result = await transformAsync('export function BlockerProbe() { return <div />; }', {
+			babelrc: false,
+			configFile: false,
+			filename: 'solid2-blocker-probe.tsx',
+			presets: [[solidPreset, { generate: 'dom' }]],
+		});
 
 		expect(result?.code).toBeTypeOf('string');
 		expect(importSources(result?.code ?? '')).toContain('solid-js/web');
@@ -90,5 +93,14 @@ describe('Solid 2 toolchain blocker contract', () => {
 		// these paths or its replacement toolchain no longer emits them.
 		expect(resolutionErrorCode('solid-beta9/web')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
 		expect(resolutionErrorCode('solid-beta9/store')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+	});
+
+	test('pins the current Solid 2 RC evidence runtime', async () => {
+		const manifest = await rcManifest();
+		expect(manifest.version).toBe('2.0.0-rc.21');
+		expect(Object.keys(manifest.exports)).not.toContain('./web');
+		expect(Object.keys(manifest.exports)).not.toContain('./store');
+		expect(resolutionErrorCode('solid2/web')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+		expect(resolutionErrorCode('solid2/store')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
 	});
 });

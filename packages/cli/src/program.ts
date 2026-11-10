@@ -1,11 +1,17 @@
 export interface TargetInventoryEntry {
 	readonly name: string;
 	readonly packageSpecifier: string;
+	readonly moduleSpecifier?: string;
 }
 
 export const TARGET_INVENTORY = [
 	{ name: 'react', packageSpecifier: '@frameless/react' },
 	{ name: 'solid', packageSpecifier: '@frameless/solid' },
+	{
+		name: 'solid-2',
+		packageSpecifier: '@frameless/solid',
+		moduleSpecifier: '@frameless/solid/v2',
+	},
 ] as const satisfies readonly TargetInventoryEntry[];
 
 export const PROGRAM_USAGE = [
@@ -15,7 +21,7 @@ export const PROGRAM_USAGE = [
 	'  frameless build <input.tsrx> [input.tsrx ...] --target <name> [--target <name>] --out-dir <dir>',
 	'',
 	'Options:',
-	'  --target <name>  Build react or solid. Repeat to build both.',
+	'  --target <name>  Build react, solid, or solid-2. Repeat to select several.',
 	'                   Duplicate targets are ignored.',
 	'  --out-dir <dir>  Write each target beneath <dir>/<target>/.',
 	'  --help           Show this help.',
@@ -40,6 +46,7 @@ export interface BuildPlanTarget {
 	readonly name: string;
 	readonly outputDirectory: string;
 	readonly packageSpecifier: string;
+	readonly moduleSpecifier?: string;
 }
 
 export interface BuildPlanInput {
@@ -127,6 +134,7 @@ export function createBuildPlan(
 			name,
 			outputDirectory: targetOutputDirectory(args.outDir, name),
 			packageSpecifier: target.packageSpecifier,
+			...(target.moduleSpecifier ? { moduleSpecifier: target.moduleSpecifier } : {}),
 		};
 	});
 

@@ -1,6 +1,8 @@
 export { createSolidAdapter } from './adapter.ts';
 export { emit, validateEnrichedIr } from './emitter/index.ts';
 export { formatEmitted } from './format-emitted.ts';
+export { resolveSolidGeneration } from './generation.ts';
+export type { EmitOptions, SolidGeneration } from './generation.ts';
 export {
 	checkGeneratedFiles,
 	checkSources,

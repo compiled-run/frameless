@@ -5,7 +5,7 @@ React and Solid each have a browser test project that runs their emitted output
 in a real Chromium and compares behavior. Qwik does not. This is deliberate and
 upstream-blocked, not an oversight.
 
-`@qwik.dev/core@2.0.0-beta.38` declares:
+`@qwik.dev/core@2.0.0-beta.38` (the executable pin) declares:
 
 ```json
 "peerDependencies": { "vite": ">=6 <9", "vitest": ">=2 <4" }
@@ -21,8 +21,11 @@ the unsupported runner is. A test whose failures cannot be attributed is not a
 test.
 
 **Unblock condition:** a `@qwik.dev/core` release whose `peerDependencies.vitest`
-admits 4.x. As of this writing `@qwik.dev/core@latest` *is* `2.0.0-beta.38`, so
-there is no newer release to move to.
+admits 4.x. `@qwik.dev/core@latest` is now `2.0.0-rc.5`, which declares
+`vitest: ">=2 <5"` and `vite: ">=8 <9"`. That meets the vitest condition on
+*latest*. The pin stays on beta.38 until the official demo (still on Vite 7.3.1)
+and generated output are re-measured against rc.5. Qwik 2 is still pre-stable, so
+nothing moves to versionless.
 
 **What covers Qwik in the meantime:**
 
