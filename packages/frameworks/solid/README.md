@@ -96,7 +96,7 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 ## Framework-version honesty
 
 The executable package lane is named exactly `solid-1.8.22-fallback` and pins Solid 1.8.22 with
-`vite-plugin-solid` 2.11.10. npm `latest` is still Solid 1.9.x; Solid 2 is `2.0.0-rc.21` (`next`).
+`vite-plugin-solid` 2.11.10. npm `latest` is Solid 1.9.19; Solid 2 is `2.0.0-rc.21` (`next`).
 Default emission and the browser adapter stay on Solid 1. Generation 2 is an explicit opt-in:
 
 | Solid 1 (`emit(ir)`) | Solid 2 (`emit(ir, { generation: '2' })`) |
