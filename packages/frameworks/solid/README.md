@@ -7,6 +7,8 @@ Markless at runtime.
 
 The public async `formatEmitted(source)` applies the repository's oxfmt configuration whenever
 emitted source becomes an artifact; synchronous `emit(ir)` remains unformatted and byte-stable.
+`emit(ir, { generation: '2' })` selects the Solid 2 RC lowering. Default `emit(ir)` stays Solid 1.
+The CLI target `solid-2` loads `@frameless/solid/v2`.
 
 The normative input is `docs/goals/frameless-product-v0/notes/T003-solid-idioms.md`. This package
 points to that dossier rather than restating its research evidence. The browser adapter is exported
@@ -94,15 +96,26 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 ## Framework-version honesty
 
 The executable package lane is named exactly `solid-1.8.22-fallback` and pins Solid 1.8.22 with
-`vite-plugin-solid` 2.11.10. The T003 research ledger was refreshed against Solid
-`v2.0.0-beta.9`, superseding the POC's older experimental.16 blocker evidence, but this package is
-**not Solid 2 runtime-validated**. Its v2 items remain recorded migration work; the fallback browser
-lane must not be reported as Solid 2 evidence.
+`vite-plugin-solid` 2.11.10. npm `latest` is Solid 1.9.19; Solid 2 is `2.0.0-rc.21` (`next`).
+Default emission and the browser adapter stay on Solid 1. Generation 2 is an explicit opt-in:
 
-Solid 2 blocker evidence: beta.9 removes the `./web` and `./store` subpath exports that the v1
-toolchain output links against. `test/solid2-blocker.test.ts` is the executable contract; if a
-future Solid 2 pin restores either export or its replacement toolchain links successfully through
-the JSX runtime model, revisit the v1-fallback decision.
+| Solid 1 (`emit(ir)`) | Solid 2 (`emit(ir, { generation: '2' })`) |
+| --- | --- |
+| `createStore` / `produce` / `reconcile` from `solid-js/store` | store APIs from `solid-js`; draft-first setters, no `produce` |
+| `value` plus `attr:value` | `value` only (`attr:` is gone) |
+| `<For each={store}>` with raw row proxies | `<For each={store} keyed={(row) => row.id}>` with row accessors |
+| authored writes are synchronous | `flush()` after setters so later reads see the committed value |
+| composition attach uses `onMount` | `onSettled` in the component body; teardown is returned |
+
+Generation 2 is **not browser-runtime-validated**. Do not describe the 1.8.22 fallback lane as
+Solid 2 evidence. Keep the Solid 1 lowering here until Solid 2 has been `latest` for a decent
+stretch; that is when the v1 path belongs in versionless.
+
+Solid 2 blocker evidence: `2.0.0-rc.21` still omits the `./web` and `./store` subpath exports that
+the v1 toolchain output links against. `test/solid2-blocker.test.ts` is the executable contract; if
+a future Solid 2 pin restores either export or its replacement toolchain links successfully through
+the JSX runtime model, revisit the v1-fallback decision. Refresh generation-2 fixtures with
+`pnpm --dir packages/frameworks/solid regenerate:v2`.
 
 ## Generality boundary
 

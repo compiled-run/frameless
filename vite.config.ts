@@ -35,7 +35,9 @@ const productConfig = defineConfig({
 		pack('packages/compiler', '@frameless/compiler', ['@markless/compiler', '@tsrx/core']),
 		pack('packages/analyzer', '@frameless/analyzer'),
 		pack('packages/frameworks/react', '@frameless/react', ['@frameless/analyzer', 'react', 'react-dom']),
-		pack('packages/frameworks/solid', '@frameless/solid', ['@frameless/analyzer', 'solid-js']),
+		pack('packages/frameworks/solid', '@frameless/solid', ['@frameless/analyzer', 'solid-js'], {
+			entry: { index: './src/index.ts', v2: './src/v2.ts' },
+		}),
 		pack(
 			'packages/cli',
 			'@frameless/cli',
