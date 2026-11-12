@@ -14,23 +14,23 @@ from `@frameless/solid/adapter`; that subpath does not import the node-only emit
 
 ## Enriched IR mapping
 
-| Enriched IR construct       | T003 ruling | Emitted Solid pattern                                                                                                                                              |
-| --------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Scalar visible state        | 1           | `createSignal`; reads call the accessor and every authored write becomes an ordered setter call.                                                                   |
-| Object/array member state   | 1           | `createStore`; keyed-repeat participation also classifies compiler-normalized `unknown` collection initializers as stores.                                         |
-| Cheap computed binding      | 2           | Plain zero-argument derived arrow. `createMemo` is never imported or emitted in v0.                                                                                |
-| Store row binding           | 3           | Bare `row.member` reads under `<For>`; no whole-collection accessor refresh hack.                                                                                  |
-| Member edit                 | 1, 3        | `setStore(produce(draft => ...))`, preserving the reused proxy row and its property-level subscription.                                                            |
-| Structural collection write | 1, 4        | `setStore(reconcile(next, { key: "<IR key>" }))`; the literal is derived from the keyed-repeat record.                                                             |
-| Keyed repeat                | 4           | `<For each={store}>`; the gate checks keyed reconcile/row consistency and the emitter metamorphic test proves the IR key drives output.                            |
-| Structural branch           | 5           | Two-arm `<Show when fallback>`; following siblings are emitted once after the Show rather than copied into both arms.                                              |
-| Event handler               | 6           | Delegated camel-case `onX`, `event.currentTarget` for leaf controls, and setter calls in authored order. No SSA collapse or `batch`.                               |
-| Text control                | 7           | Identical `value` and `attr:value` expressions plus `onInput`.                                                                                                     |
-| Checkbox control            | 7           | `checked` plus `onChange`.                                                                                                                                         |
-| Props and once-local        | 8           | Reactive reads stay `props.path`; prop-reading setup initializers and once-captures use `untrack(() => ...)`.                                                      |
-| Invisible scalar cell       | 9           | Plain component-local `let`; it is never rendered.                                                                                                                 |
-| Component/module            | 10          | One named exported PascalCase function, one props identifier only when records contain prop reads, `.jsx`, `class`/`for`, and only dossier-allowed Solid imports. |
-| Forward ledger              | 11          | v0 retains the recorded v2 migration debt: For child accessors, attr namespace removal, store API moves, microtask batching recalibration, adapter relocation, and the generated `useX`-with-throw context accessor (Solid 2 RFC: drop the wrapper, call `useContext` directly — composition-era addition). |
+| Enriched IR construct       | T003 ruling | Emitted Solid pattern                                                                                                                                                                                                                                                                                                                           |
+| --------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scalar visible state        | 1           | `createSignal`; reads call the accessor and every authored write becomes an ordered setter call.                                                                                                                                                                                                                                                |
+| Object/array member state   | 1           | `createStore`; keyed-repeat participation also classifies compiler-normalized `unknown` collection initializers as stores.                                                                                                                                                                                                                      |
+| Cheap computed binding      | 2           | Plain zero-argument derived arrow. `createMemo` is never imported or emitted in v0.                                                                                                                                                                                                                                                             |
+| Store row binding           | 3           | Bare `row.member` reads under `<For>`; no whole-collection accessor refresh hack.                                                                                                                                                                                                                                                               |
+| Member edit                 | 1, 3        | `setStore(produce(draft => ...))`, preserving the reused proxy row and its property-level subscription.                                                                                                                                                                                                                                         |
+| Structural collection write | 1, 4        | `setStore(reconcile(next, { key: "<IR key>" }))`; the literal is derived from the keyed-repeat record.                                                                                                                                                                                                                                          |
+| Keyed repeat                | 4           | `<For each={store}>`; the gate checks keyed reconcile/row consistency and the emitter metamorphic test proves the IR key drives output.                                                                                                                                                                                                         |
+| Structural branch           | 5           | Two-arm `<Show when fallback>`; following siblings are emitted once after the Show rather than copied into both arms.                                                                                                                                                                                                                           |
+| Event handler               | 6           | Delegated camel-case `onX`, `event.currentTarget` for leaf controls, and setter calls in authored order. No SSA collapse or `batch`.                                                                                                                                                                                                            |
+| Text control                | 7           | Identical `value` and `attr:value` expressions plus `onInput`.                                                                                                                                                                                                                                                                                  |
+| Checkbox control            | 7           | `checked` plus `onChange`.                                                                                                                                                                                                                                                                                                                      |
+| Props and once-local        | 8           | Reactive reads stay `props.path`; prop-reading setup initializers and once-captures use `untrack(() => ...)`.                                                                                                                                                                                                                                   |
+| Invisible scalar cell       | 9           | Plain component-local `let`; it is never rendered.                                                                                                                                                                                                                                                                                              |
+| Component/module            | 10          | One named exported PascalCase function, one props identifier only when records contain prop reads, `.jsx`, `class`/`for`, and only dossier-allowed Solid imports.                                                                                                                                                                               |
+| Forward ledger              | 11          | Default emit stays on Solid 1.x. `emit(ir, { target: '2' })` applies the recorded v2 moves: For child accessors plus `keyed={t => t.id}`, attr namespace removal, store APIs on `solid-js`, draft-first setters (no `produce`), microtask batching (`flush` in the v2 adapter), `@solidjs/web` mount, and `useContext` without a throw wrapper. |
 
 ## Fail-closed boundary and binding safety
 
@@ -93,16 +93,21 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 
 ## Framework-version honesty
 
-The executable package lane is named exactly `solid-1.8.22-fallback` and pins Solid 1.8.22 with
-`vite-plugin-solid` 2.11.10. The T003 research ledger was refreshed against Solid
-`v2.0.0-beta.9`, superseding the POC's older experimental.16 blocker evidence, but this package is
-**not Solid 2 runtime-validated**. Its v2 items remain recorded migration work; the fallback browser
-lane must not be reported as Solid 2 evidence.
+Frameless currently supports **both** Solid 1.x and Solid 2 RC. Solid 2 has not been a stable
+release long enough to move the v1 work into versionless.
 
-Solid 2 blocker evidence: beta.9 removes the `./web` and `./store` subpath exports that the v1
-toolchain output links against. `test/solid2-blocker.test.ts` is the executable contract; if a
-future Solid 2 pin restores either export or its replacement toolchain links successfully through
-the JSX runtime model, revisit the v1-fallback decision.
+- Default `emit(ir)` and the browser lane named `solid-1.8.22-fallback` pin Solid 1.8.22 with
+  `vite-plugin-solid` 2.11.10. Checked-in `generated/` artifacts are this surface: `solid-js/store`,
+  `produce`, `attr:value`, and `<For>` children as row values.
+- `emit(ir, { target: '2' })` emits the Solid 2 RC (`2.0.0-rc.21`) surface: stores and `reconcile`
+  from `solid-js`, draft-first store setters, no `attr:` namespace, `<For keyed={t => t.id}>` with
+  accessor children, and context as `<Ctx value={v}>`. `createSolid2Adapter` mounts through
+  `@solidjs/web` (`solid-v2-web`) and flushes queued writes on settle.
+
+The v1 runtime still cannot load on Solid 2: RC.21 does not export `./web` or `./store`.
+`test/solid2-blocker.test.ts` is the executable contract. The v1 browser lane must not be reported
+as Solid 2 evidence; the v2 emit path is node-proven against the recorded API moves and is not yet
+a second browser project.
 
 ## Generality boundary
 
