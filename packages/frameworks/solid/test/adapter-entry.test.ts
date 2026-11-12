@@ -11,6 +11,10 @@ describe('public Solid adapter entry', () => {
 		expect(manifest.publishConfig.exports['./adapter']).toEqual({
 			default: './dist/adapter.js',
 		});
+		expect(manifest.exports['./adapter-v2']).toBe('./src/adapter-v2.ts');
+		expect(manifest.publishConfig.exports['./adapter-v2']).toEqual({
+			default: './dist/adapter-v2.js',
+		});
 	});
 
 	test('has a browser-safe import graph', async () => {
@@ -33,5 +37,29 @@ describe('public Solid adapter entry', () => {
 				pending.push(resolve(file, '..', specifier));
 		}
 		expect([...visited]).toEqual([resolve(root, 'src/adapter.ts')]);
+	});
+
+	test('Solid 2 adapter has a browser-safe import graph', async () => {
+		const pending = [resolve(root, 'src/adapter-v2.ts')];
+		const visited = new Set<string>();
+		while (pending.length) {
+			const file = pending.pop()!;
+			if (visited.has(file)) continue;
+			visited.add(file);
+			const source = await readFile(file, 'utf8');
+			const imports = [...source.matchAll(/from\s+['"]([^'"]+)['"]/g)].map(
+				(match) => match[1]!,
+			);
+			expect(
+				imports.filter((specifier) => specifier.startsWith('node:')),
+				file,
+			).toEqual([]);
+			expect(imports, file).not.toContain('eslint');
+			expect(imports, file).toContain('solid-v2');
+			expect(imports, file).toContain('solid-v2-web');
+			for (const specifier of imports.filter((entry) => entry.startsWith('.')))
+				pending.push(resolve(file, '..', specifier));
+		}
+		expect([...visited]).toEqual([resolve(root, 'src/adapter-v2.ts')]);
 	});
 });
