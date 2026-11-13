@@ -32,11 +32,15 @@ type ApiName =
 	| 'createEffect'
 	| 'onMount'
 	| 'onCleanup';
+export type SolidGeneration = 1 | 2;
+export type EmitOptions = { readonly generation?: SolidGeneration };
 type EmitContext = {
+	readonly accessorItems: ReadonlySet<string>;
 	readonly api: ReadonlyMap<ApiName, string>;
 	readonly bindingsById: ReadonlyMap<string, EnrichedGraphBinding>;
 	readonly computedByName: ReadonlyMap<string, EnrichedGraphBinding>;
 	readonly events: ReadonlyMap<string, EnrichedEventRecord>;
+	readonly generation: SolidGeneration;
 	readonly imports: Set<ApiName>;
 	readonly lexicalNames: ReadonlySet<string>;
 	readonly names: NameAllocator;
@@ -49,6 +53,13 @@ type EmitContext = {
 	readonly statesByName: ReadonlyMap<string, StateBinding>;
 	readonly storeKeys: ReadonlyMap<string, string>;
 };
+
+function resolveGeneration(options: EmitOptions = {}): SolidGeneration {
+	const generation = options.generation ?? 1;
+	if (generation !== 1 && generation !== 2)
+		throw new Error(`Unsupported Solid generation: ${String(generation)}`);
+	return generation;
+}
 type RenderedNode = t.JSXElement | t.JSXExpressionContainer | t.JSXFragment | t.JSXText;
 
 function walk(value: unknown, visit: (record: RecordLike) => void): void {
@@ -409,11 +420,7 @@ function validateSyncPolicy(
 				throw new Error(`SyncPolicy ${eventId} has unsupported sync shape`);
 			validateCondition(condition.condition);
 		} else if (type === 'graph-truthy') {
-			exactKeys(
-				condition,
-				['type', 'graphNodeId', 'path'],
-				`SyncPolicyCondition ${eventId}`,
-			);
+			exactKeys(condition, ['type', 'graphNodeId', 'path'], `SyncPolicyCondition ${eventId}`);
 			if (typeof condition.graphNodeId !== 'string' || !bindingIds.has(condition.graphNodeId))
 				throw new Error(
 					`SyncPolicyCondition ${eventId} has dangling graph record id: ${String(condition.graphNodeId)}`,
@@ -2190,7 +2197,15 @@ function rewriteExpressionAst(result: t.Expression, context: EmitContext): t.Exp
 			const writeTarget =
 				(parent?.type === 'AssignmentExpression' && parent.left === node) ||
 				(parent?.type === 'UpdateExpression' && parent.argument === node);
-			if (writeTarget || context.lexicalNames.has(node.name)) continue;
+			if (writeTarget) continue;
+			if (context.accessorItems.has(node.name)) {
+				if (parent?.type === 'CallExpression' && parent.callee === node) continue;
+				const wrapped = t.callExpression(t.identifier(node.name), []);
+				if (parent?.type === 'Property' && parent.shorthand) parent.shorthand = false;
+				replace(node, wrapped);
+				continue;
+			}
+			if (context.lexicalNames.has(node.name)) continue;
 			const prop = context.propsByLocal.get(node.name);
 			const state = context.statesByName.get(node.name);
 			const computed = context.computedByName.get(node.name);
@@ -2231,6 +2246,31 @@ function rewriteExpressionAst(result: t.Expression, context: EmitContext): t.Exp
 				let value = node.right;
 				if (state.storage === 'store') {
 					const key = context.storeKeys.get(state.id);
+					if (context.generation === 2) {
+						const draft = t.identifier(context.names.claim('storeDraft'));
+						replace(
+							node,
+							t.callExpression(t.identifier(context.settersById.get(state.id)!), [
+								t.arrowFunctionExpression(
+									[draft],
+									key
+										? t.blockStatement([
+												t.expressionStatement(
+													t.callExpression(
+														t.callExpression(
+															api(context, 'reconcile'),
+															[value, t.stringLiteral(key)],
+														),
+														[t.cloneNode(draft)],
+													),
+												),
+											])
+										: value,
+								),
+							]),
+						);
+						continue;
+					}
 					const options = key
 						? [
 								t.objectExpression([
@@ -2315,20 +2355,38 @@ function repeatNode(
 	node: Extract<TemplateNode, { kind: 'keyed-repeat' }>,
 	context: EmitContext,
 ): t.JSXElement {
+	const keyPath = itemMemberPath(node.key.expression, node.item);
 	const lexicalNames = new Set(context.lexicalNames).add(node.item);
 	if (node.index) lexicalNames.add(node.index);
-	const rowContext = { ...context, lexicalNames };
+	const accessorItems =
+		context.generation === 2 && keyPath
+			? new Set(context.accessorItems).add(node.item)
+			: context.accessorItems;
+	const rowContext = { ...context, lexicalNames, accessorItems };
 	const callback = t.arrowFunctionExpression(
 		[t.identifier(node.item)],
 		expressionFromNodes(node.row, rowContext),
 	);
 	const name = t.jsxIdentifier(api(context, 'For').name);
+	const attributes = [
+		jsxAttribute('each', rewriteExpression(node.collection.expression, context)),
+	];
+	if (context.generation === 2) {
+		if (!keyPath || keyPath.length !== 1)
+			throw new Error(`TemplateKeyedRepeat ${node.id} has unconsumed key semantics`);
+		const row = t.identifier(context.names.claim('row'));
+		attributes.push(
+			jsxAttribute(
+				'keyed',
+				t.arrowFunctionExpression(
+					[row],
+					t.memberExpression(row, t.identifier(keyPath[0]!)),
+				),
+			),
+		);
+	}
 	return t.jsxElement(
-		t.jsxOpeningElement(
-			name,
-			[jsxAttribute('each', rewriteExpression(node.collection.expression, context))],
-			false,
-		),
+		t.jsxOpeningElement(name, attributes, false),
 		t.jsxClosingElement(t.cloneNode(name)),
 		[t.jsxExpressionContainer(callback)],
 		false,
@@ -2357,7 +2415,7 @@ function templateNode(node: TemplateNode, context: EmitContext): RenderedNode {
 	for (const binding of node.dynamicBindings) {
 		const value = rewriteExpression(binding.expression, context);
 		attributes.push(jsxAttribute(binding.name, value));
-		if (binding.kind === 'property' && binding.name === 'value')
+		if (context.generation === 1 && binding.kind === 'property' && binding.name === 'value')
 			attributes.push(jsxAttribute('attr:value', t.cloneNode(value, true)));
 	}
 	for (const eventId of node.eventIds) {
@@ -2518,10 +2576,12 @@ function lowerStoreMemberWrites(
 			[t.cloneNode(draft)],
 			t.blockStatement([aliasDeclaration, t.cloneNode(assignment, true)]),
 		);
+		const writeArg =
+			context.generation === 2
+				? callback
+				: t.callExpression(api(context, 'produce'), [callback]);
 		const call = t.expressionStatement(
-			t.callExpression(t.identifier(context.settersById.get(state.id)!), [
-				t.callExpression(api(context, 'produce'), [callback]),
-			]),
+			t.callExpression(t.identifier(context.settersById.get(state.id)!), [writeArg]),
 		);
 		const insertion = copyIndex >= 0 ? copyIndex : aliasIndex;
 		replacements.set(insertion, call);
@@ -2566,8 +2626,7 @@ function syncPlan(event: EnrichedEventRecord): SolidSyncPlan | null {
 			`SyncPolicy ${event.id} declares a multi-handler sync policy; the Solid emitter reconciles one branch per event prop`,
 		);
 	const actions = (policy.actions ?? []) as readonly string[];
-	const unconditional =
-		policy.when?.type === 'constant-truthy' && Boolean(policy.when.value);
+	const unconditional = policy.when?.type === 'constant-truthy' && Boolean(policy.when.value);
 	return {
 		actions,
 		renormalize: unconditional && actions.length === 1 && actions[0] === 'preventDefault',
@@ -2781,9 +2840,7 @@ function typeNode(node: SerializableAstNode, where: string): t.Node {
 				throw new Error(`Solid emitter received a malformed function type in ${where}`);
 			return t.tsFunctionType(
 				parameters.map((parameter) => typeParameter(parameter, where)),
-				t.tsTypeAnnotation(
-					typeNode(returns.typeAnnotation as SerializableAstNode, where),
-				),
+				t.tsTypeAnnotation(typeNode(returns.typeAnnotation as SerializableAstNode, where)),
 			);
 		}
 		default:
@@ -3295,22 +3352,22 @@ function compositionTemplateNode(node: TemplateNode, context: CompositionContext
 		);
 		const propName = prop?.sourceName ?? parentHandle.handleName.split('.').at(-1)!;
 		const callbackBody: t.Statement[] = [
-				t.expressionStatement(
-					t.callExpression(member(t.identifier(context.propsName), propName), [
-						t.identifier('node'),
-					]),
-				),
-				t.expressionStatement(
-					t.callExpression(api(context.base, 'onCleanup'), [
-						t.arrowFunctionExpression(
-							[],
-							t.callExpression(member(t.identifier(context.propsName), propName), [
-								t.identifier('undefined'),
-							]),
-						),
-					]),
-				),
-			];
+			t.expressionStatement(
+				t.callExpression(member(t.identifier(context.propsName), propName), [
+					t.identifier('node'),
+				]),
+			),
+			t.expressionStatement(
+				t.callExpression(api(context.base, 'onCleanup'), [
+					t.arrowFunctionExpression(
+						[],
+						t.callExpression(member(t.identifier(context.propsName), propName), [
+							t.identifier('undefined'),
+						]),
+					),
+				]),
+			),
+		];
 		if (attach)
 			callbackBody.push(
 				t.expressionStatement(
@@ -4009,14 +4066,7 @@ function compositionComponent(
 	const declaration = t.functionDeclaration(
 		t.identifier(component.name),
 		component.props.entries.length > 0 || forwardsRef
-			? [
-					typedPropsParameter(
-						component,
-						propsName,
-						body,
-						forwardsRef ? [{ key: 'ref' }] : [],
-					),
-				]
+			? [typedPropsParameter(component, propsName, body, forwardsRef ? [{ key: 'ref' }] : [])]
 			: [],
 		t.blockStatement(body),
 	);
@@ -4043,10 +4093,12 @@ function emitComposition(ir: EnrichedIR): string {
 		apiNames.set(name, allocator.claim(name));
 	const persistenceWrites = { emitted: false };
 	const base: EmitContext = {
+		accessorItems: new Set(),
 		api: apiNames,
 		bindingsById: new Map(),
 		computedByName: new Map(),
 		events: new Map(ir.records.events.map((event) => [event.id, event])),
+		generation: 1,
 		imports: new Set(),
 		lexicalNames: new Set(),
 		names: allocator,
@@ -4068,9 +4120,7 @@ function emitComposition(ir: EnrichedIR): string {
 			context: allocator.claim(withGeneratedSuffix(stem, 'Context')),
 			provider: allocator.claim(withGeneratedSuffix(stem, 'Provider')),
 			createShared: allocator.claim(`create${withGeneratedSuffix(stem, 'Shared')}`),
-			moduleShared: allocator.claim(
-				lowercaseFirst(withGeneratedSuffix(stem, 'Shared')),
-			),
+			moduleShared: allocator.claim(lowercaseFirst(withGeneratedSuffix(stem, 'Shared'))),
 		});
 	}
 	const declarations: t.Statement[] = [];
@@ -4150,24 +4200,34 @@ function emitComposition(ir: EnrichedIR): string {
 	return source;
 }
 
-/** Emit one Solid 1.x-compatible .tsx module from frameless-enriched-ir/2. */
-export function emit(ir: EnrichedIR): string {
+/** Emit one Solid module from frameless-enriched-ir/2. Generation 1 is the default. */
+export function emit(ir: EnrichedIR, options: EmitOptions = {}): string {
+	const generation = resolveGeneration(options);
 	validateEnrichedIr(ir);
-	if (hasComposition(ir)) return emitComposition(ir);
+	if (hasComposition(ir)) {
+		if (generation === 2)
+			throw new Error(
+				'Solid 2 composition emission is not admitted: onMount/createEffect/onCleanup mapping is unvalidated against Solid 2.0 RC',
+			);
+		return emitComposition(ir);
+	}
 	const component = ir.components[0]!;
 	const authored = collectAuthoredNames(ir);
 	const allocator = new NameAllocator(authored);
 	const apiNames = new Map<ApiName, string>();
-	for (const name of [
-		'createSignal',
-		'createStore',
-		'produce',
-		'reconcile',
-		'untrack',
-		'For',
-		'Show',
-	] as const)
-		apiNames.set(name, allocator.claim(name));
+	const apiList =
+		generation === 2
+			? (['createSignal', 'createStore', 'reconcile', 'untrack', 'For', 'Show'] as const)
+			: ([
+					'createSignal',
+					'createStore',
+					'produce',
+					'reconcile',
+					'untrack',
+					'For',
+					'Show',
+				] as const);
+	for (const name of apiList) apiNames.set(name, allocator.claim(name));
 	const visible = referencedGraphIds(component, ir.records);
 	const storeKeys = collectStoreKeys(component);
 	const statesById = new Map<string, StateBinding>();
@@ -4198,6 +4258,7 @@ export function emit(ir: EnrichedIR): string {
 		);
 	const persistenceWrites = { emitted: false };
 	const context: EmitContext = {
+		accessorItems: new Set(),
 		api: apiNames,
 		bindingsById: new Map(ir.records.bindings.map((binding) => [binding.id, binding])),
 		computedByName: new Map(
@@ -4206,6 +4267,7 @@ export function emit(ir: EnrichedIR): string {
 				.map((binding) => [binding.name, binding]),
 		),
 		events: new Map(ir.records.events.map((event) => [event.id, event])),
+		generation,
 		imports: new Set(),
 		lexicalNames: new Set(),
 		names: allocator,
@@ -4221,7 +4283,10 @@ export function emit(ir: EnrichedIR): string {
 		storeKeys,
 	};
 	const exported = componentFunction(ir, component, context);
-	const solidNames: ApiName[] = ['createSignal', 'untrack', 'For', 'Show'];
+	const solidNames: ApiName[] =
+		generation === 2
+			? ['createSignal', 'untrack', 'For', 'Show', 'createStore', 'reconcile']
+			: ['createSignal', 'untrack', 'For', 'Show'];
 	const storeNames: ApiName[] = ['createStore', 'produce', 'reconcile'];
 	const declarations: t.Statement[] = [];
 	const addImport = (source: string, candidates: ApiName[]): void => {
@@ -4237,7 +4302,7 @@ export function emit(ir: EnrichedIR): string {
 		);
 	};
 	addImport('solid-js', solidNames);
-	addImport('solid-js/store', storeNames);
+	if (generation === 1) addImport('solid-js/store', storeNames);
 	if (persistenceWrites.emitted) declarations.push(persistenceHelperDeclaration());
 	declarations.push(exported);
 	const source = `// @generated by @frameless/solid; do not edit.\n${printTopLevel(t.program(declarations))}\n`;
