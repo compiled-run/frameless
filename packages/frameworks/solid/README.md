@@ -14,22 +14,22 @@ from `@frameless/solid/adapter`; that subpath does not import the node-only emit
 
 ## Enriched IR mapping
 
-| Enriched IR construct       | T003 ruling | Emitted Solid pattern                                                                                                                                              |
-| --------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Scalar visible state        | 1           | `createSignal`; reads call the accessor and every authored write becomes an ordered setter call.                                                                   |
-| Object/array member state   | 1           | `createStore`; keyed-repeat participation also classifies compiler-normalized `unknown` collection initializers as stores.                                         |
-| Cheap computed binding      | 2           | Plain zero-argument derived arrow. `createMemo` is never imported or emitted in v0.                                                                                |
-| Store row binding           | 3           | Bare `row.member` reads under `<For>`; no whole-collection accessor refresh hack.                                                                                  |
-| Member edit                 | 1, 3        | `setStore(produce(draft => ...))`, preserving the reused proxy row and its property-level subscription.                                                            |
-| Structural collection write | 1, 4        | `setStore(reconcile(next, { key: "<IR key>" }))`; the literal is derived from the keyed-repeat record.                                                             |
-| Keyed repeat                | 4           | `<For each={store}>`; the gate checks keyed reconcile/row consistency and the emitter metamorphic test proves the IR key drives output.                            |
-| Structural branch           | 5           | Two-arm `<Show when fallback>`; following siblings are emitted once after the Show rather than copied into both arms.                                              |
-| Event handler               | 6           | Delegated camel-case `onX`, `event.currentTarget` for leaf controls, and setter calls in authored order. No SSA collapse or `batch`.                               |
-| Text control                | 7           | Identical `value` and `attr:value` expressions plus `onInput`.                                                                                                     |
-| Checkbox control            | 7           | `checked` plus `onChange`.                                                                                                                                         |
-| Props and once-local        | 8           | Reactive reads stay `props.path`; prop-reading setup initializers and once-captures use `untrack(() => ...)`.                                                      |
-| Invisible scalar cell       | 9           | Plain component-local `let`; it is never rendered.                                                                                                                 |
-| Component/module            | 10          | One named exported PascalCase function, one props identifier only when records contain prop reads, `.jsx`, `class`/`for`, and only dossier-allowed Solid imports. |
+| Enriched IR construct       | T003 ruling | Emitted Solid pattern                                                                                                                                                                                                                                                                                       |
+| --------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scalar visible state        | 1           | `createSignal`; reads call the accessor and every authored write becomes an ordered setter call.                                                                                                                                                                                                            |
+| Object/array member state   | 1           | `createStore`; keyed-repeat participation also classifies compiler-normalized `unknown` collection initializers as stores.                                                                                                                                                                                  |
+| Cheap computed binding      | 2           | Plain zero-argument derived arrow. `createMemo` is never imported or emitted in v0.                                                                                                                                                                                                                         |
+| Store row binding           | 3           | Bare `row.member` reads under `<For>`; no whole-collection accessor refresh hack.                                                                                                                                                                                                                           |
+| Member edit                 | 1, 3        | `setStore(produce(draft => ...))`, preserving the reused proxy row and its property-level subscription.                                                                                                                                                                                                     |
+| Structural collection write | 1, 4        | `setStore(reconcile(next, { key: "<IR key>" }))`; the literal is derived from the keyed-repeat record.                                                                                                                                                                                                      |
+| Keyed repeat                | 4           | `<For each={store}>`; the gate checks keyed reconcile/row consistency and the emitter metamorphic test proves the IR key drives output.                                                                                                                                                                     |
+| Structural branch           | 5           | Two-arm `<Show when fallback>`; following siblings are emitted once after the Show rather than copied into both arms.                                                                                                                                                                                       |
+| Event handler               | 6           | Delegated camel-case `onX`, `event.currentTarget` for leaf controls, and setter calls in authored order. No SSA collapse or `batch`.                                                                                                                                                                        |
+| Text control                | 7           | Identical `value` and `attr:value` expressions plus `onInput`.                                                                                                                                                                                                                                              |
+| Checkbox control            | 7           | `checked` plus `onChange`.                                                                                                                                                                                                                                                                                  |
+| Props and once-local        | 8           | Reactive reads stay `props.path`; prop-reading setup initializers and once-captures use `untrack(() => ...)`.                                                                                                                                                                                               |
+| Invisible scalar cell       | 9           | Plain component-local `let`; it is never rendered.                                                                                                                                                                                                                                                          |
+| Component/module            | 10          | One named exported PascalCase function, one props identifier only when records contain prop reads, `.jsx`, `class`/`for`, and only dossier-allowed Solid imports.                                                                                                                                           |
 | Forward ledger              | 11          | v0 retains the recorded v2 migration debt: For child accessors, attr namespace removal, store API moves, microtask batching recalibration, adapter relocation, and the generated `useX`-with-throw context accessor (Solid 2 RFC: drop the wrapper, call `useContext` directly — composition-era addition). |
 
 ## Fail-closed boundary and binding safety
@@ -93,16 +93,25 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 
 ## Framework-version honesty
 
-The executable package lane is named exactly `solid-1.8.22-fallback` and pins Solid 1.8.22 with
-`vite-plugin-solid` 2.11.10. The T003 research ledger was refreshed against Solid
-`v2.0.0-beta.9`, superseding the POC's older experimental.16 blocker evidence, but this package is
-**not Solid 2 runtime-validated**. Its v2 items remain recorded migration work; the fallback browser
-lane must not be reported as Solid 2 evidence.
+Frameless keeps **both** Solid generations while 2.0 is still an RC:
 
-Solid 2 blocker evidence: beta.9 removes the `./web` and `./store` subpath exports that the v1
-toolchain output links against. `test/solid2-blocker.test.ts` is the executable contract; if a
-future Solid 2 pin restores either export or its replacement toolchain links successfully through
-the JSX runtime model, revisit the v1-fallback decision.
+| Generation    | How to emit                                 | Runtime lane                                                                   | Status                                 |
+| ------------- | ------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------- |
+| `1` (default) | `emit(ir)` or `emit(ir, { generation: 1 })` | `solid-1.8.22-fallback` with `solid-js@1.8.22` and `vite-plugin-solid` 2.11.10 | Browser-validated                      |
+| `2`           | `emit(ir, { generation: 2 })`               | not yet a browser lane                                                         | Node-checked against Solid 2.0 RC APIs |
+
+Solid 2.0 reached RC (`2.0.0-rc.21` as of this writing). That is new enough that v1 stays in this package; it is **not** old enough to move into versionless. Versionless should classify Solid, not take the v1 emitter, until 2.0 has been stable for a decent stretch.
+
+Generation 2 emission (T003 v2 ledger, now executable):
+
+- `createStore` / `reconcile` import from `solid-js`; the `solid-js/store` subpath is gone
+- store setters are draft-first; `produce` is not imported or emitted
+- keyed identity is `<For keyed={row => row.id}>` plus `reconcile(next, "id")(draft)`
+- For row items are accessors (`todo().title`), matching custom-key For
+- `attr:value` is not emitted (`attr:` is a Solid 2 compile error)
+- composition IR is refused until `onMount` / `createEffect` / `onCleanup` are mapped to `onSettled` / split effects
+
+The executable browser lane remains `solid-1.8.22-fallback`. Do not report that lane as Solid 2 evidence. `test/solid2-blocker.test.ts` still records that Solid 2 itself does not export `./web` or `./store`; those moved to `@solidjs/web` and in-package `solid-js` respectively.
 
 ## Generality boundary
 

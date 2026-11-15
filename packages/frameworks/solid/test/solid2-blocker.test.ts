@@ -49,12 +49,22 @@ async function betaManifest(): Promise<PackageManifest> {
 
 describe('Solid 2 toolchain blocker contract', () => {
 	test('pins the T003 evidence runtime and its JSX-runtime migration path', async () => {
-		// T003 uses Solid 2.0.0-beta.9 as its evidence base.
+		// T003 used Solid 2.0.0-beta.9 as its evidence base; RC is the current pin
+		// beside it so generation-2 emission can track the frozen API.
 		const manifest = await betaManifest();
 		expect(manifest.version).toBe('2.0.0-beta.9');
-
-		// Solid 2's toolchain moves to the JSX runtime model.
 		expect(Object.keys(manifest.exports)).toContain('./jsx-runtime');
+		expect(Object.keys(manifest.exports)).not.toContain('./web');
+		expect(Object.keys(manifest.exports)).not.toContain('./store');
+	});
+
+	test('the Solid 2 RC pin still withholds the v1 web and store subpaths', async () => {
+		const rc = JSON.parse(
+			await readFile(nodeRequire.resolve('solid2/package.json'), 'utf8'),
+		) as PackageManifest;
+		expect(rc.version).toBe('2.0.0-rc.21');
+		expect(Object.keys(rc.exports)).not.toContain('./web');
+		expect(Object.keys(rc.exports)).not.toContain('./store');
 	});
 
 	test('emitted S2 output links to the Solid 1 store subpath', async () => {
@@ -68,15 +78,12 @@ describe('Solid 2 toolchain blocker contract', () => {
 		const presetRequire = createRequire(presetPath);
 		const { transformAsync } = presetRequire('@babel/core') as BabelCore;
 		const solidPreset = nodeRequire('babel-preset-solid');
-		const result = await transformAsync(
-			'export function BlockerProbe() { return <div />; }',
-			{
-				babelrc: false,
-				configFile: false,
-				filename: 'solid2-blocker-probe.tsx',
-				presets: [[solidPreset, { generate: 'dom' }]],
-			},
-		);
+		const result = await transformAsync('export function BlockerProbe() { return <div />; }', {
+			babelrc: false,
+			configFile: false,
+			filename: 'solid2-blocker-probe.tsx',
+			presets: [[solidPreset, { generate: 'dom' }]],
+		});
 
 		expect(result?.code).toBeTypeOf('string');
 		expect(importSources(result?.code ?? '')).toContain('solid-js/web');
@@ -90,5 +97,7 @@ describe('Solid 2 toolchain blocker contract', () => {
 		// these paths or its replacement toolchain no longer emits them.
 		expect(resolutionErrorCode('solid-beta9/web')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
 		expect(resolutionErrorCode('solid-beta9/store')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+		expect(resolutionErrorCode('solid2/web')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+		expect(resolutionErrorCode('solid2/store')).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
 	});
 });
