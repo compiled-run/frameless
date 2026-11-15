@@ -637,6 +637,9 @@ importers:
       solid-beta9:
         specifier: npm:solid-js@2.0.0-beta.9
         version: solid-js@2.0.0-beta.9
+      solid2:
+        specifier: npm:solid-js@2.0.0-rc.21
+        version: solid-js@2.0.0-rc.21
       vite:
         specifier: catalog:default
         version: 8.0.16(@types/node@24.12.2)(esbuild@0.28.1)(sass@1.99.0)(yaml@2.9.0)
@@ -3029,6 +3032,10 @@ packages:
 
   '@solidjs/signals@2.0.0-beta.20':
     resolution: {integrity: sha512-9fs7Bf9rkOeWQqHBPmt2wyEPo3TloRRJQ2yrqH7HOyYAHsUXicdL8334P0aUFwEK0teOIFeyEqBVAX8BHkKhDw==}
+
+  '@solidjs/signals@2.0.0-rc.21':
+    resolution: {integrity: sha512-F1TUMO/nd1XC//+tcaWxibOOgXBHQGmNQnAeiDnpLh+1smnlwIgKF6pc20evlyfQwqf0gP6rH4sNEqCPBNcpgg==}
+    engines: {node: '>=22.12.0'}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -6115,9 +6122,19 @@ packages:
     peerDependencies:
       seroval: ^1.0
 
+  seroval-plugins@1.7.0:
+    resolution: {integrity: sha512-WM4rArfPtLZriTuxC5DBvNulEwAaRcjNe/dkMOEesOcuvXf5nEwKf5Bw3AT92WHohqcc45+57GdtsCuBTI0mjw==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      seroval: ^1.0
+
   seroval@1.5.6:
     resolution: {integrity: sha512-rVQVWjjSvlINzaQPZH5JFqsqEsIWdTxY3iJZCnTL/5gQbXIRooVZKI60tVCkOVfzcRPejboxO2t0P89dg5mQaA==}
     engines: {node: '>=10'}
+
+  seroval@1.7.0:
+    resolution: {integrity: sha512-FU+LUkmDzWNsJ6oubZFN3dGPKny53DRhPJG6nftEaXDL8MIn19+kEE1Gvc+63Go+qPOwVUlKIdKhsu2HN6tksw==}
+    engines: {node: '>=20'}
 
   serve-static@2.2.1:
     resolution: {integrity: sha512-xRXBn0pPqQTVQiC8wyQrKs2MOlX24zQ0POGaj0kultvoOCstBQM5yvOhAVSUwOMjQtTvsPWoNCHfPGwaaQJhTw==}
@@ -6216,6 +6233,10 @@ packages:
 
   solid-js@2.0.0-beta.9:
     resolution: {integrity: sha512-mvQphbOb/4wcrOicuZVPax19P4QfI0/q1NC/uy7Yt33TipSNj0wOnTA7uYMswBP6WC7vV7TgJ+pSqNX005E2ag==}
+
+  solid-js@2.0.0-rc.21:
+    resolution: {integrity: sha512-0Z8/qiJKnK6A2g8QspGthwxR0W8WauMOD2/LQtNmxBT8gpZkKaXmo/fdek/+cB+84w4HYejWJixSAn4fcAI0Uw==}
+    engines: {node: '>=22.12.0'}
 
   solid-refresh@0.6.3:
     resolution: {integrity: sha512-F3aPsX6hVw9ttm5LYlth8Q15x6MlI/J3Dn+o3EQyRTtTxidepSTwAYdozt01/YA+7ObcciagGEyXIopGZzQtbA==}
@@ -8927,6 +8948,8 @@ snapshots:
       '@sigstore/protobuf-specs': 0.5.1
 
   '@solidjs/signals@2.0.0-beta.20': {}
+
+  '@solidjs/signals@2.0.0-rc.21': {}
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -12741,7 +12764,13 @@ snapshots:
     dependencies:
       seroval: 1.5.6
 
+  seroval-plugins@1.7.0(seroval@1.7.0):
+    dependencies:
+      seroval: 1.7.0
+
   seroval@1.5.6: {}
+
+  seroval@1.7.0: {}
 
   serve-static@2.2.1:
     dependencies:
@@ -12905,6 +12934,13 @@ snapshots:
       csstype: 3.2.3
       seroval: 1.5.6
       seroval-plugins: 1.5.6(seroval@1.5.6)
+
+  solid-js@2.0.0-rc.21:
+    dependencies:
+      '@solidjs/signals': 2.0.0-rc.21
+      csstype: 3.2.3
+      seroval: 1.7.0
+      seroval-plugins: 1.7.0(seroval@1.7.0)
 
   solid-refresh@0.6.3(solid-js@1.8.22):
     dependencies:
