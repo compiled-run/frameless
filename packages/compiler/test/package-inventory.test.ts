@@ -379,6 +379,8 @@ const PEER_ATOMS = [
 	'rxjs@7.8.2',
 	'sass@1.99.0',
 	'seroval@1.5.6',
+	// Solid 2.0.0-rc.22 (generation-2 pin beside 1.8.22) resolves seroval 1.7.0.
+	'seroval@1.7.0',
 	'solid-js@1.8.22',
 	'srvx@0.11.22',
 	'svelte@5.56.8',
