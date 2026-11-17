@@ -1,4 +1,3 @@
-
 ## Why there is no Qwik browser test project
 
 React and Solid each have a browser test project that runs their emitted output
@@ -21,8 +20,11 @@ the unsupported runner is. A test whose failures cannot be attributed is not a
 test.
 
 **Unblock condition:** a `@qwik.dev/core` release whose `peerDependencies.vitest`
-admits 4.x. As of this writing `@qwik.dev/core@latest` *is* `2.0.0-beta.38`, so
-there is no newer release to move to.
+admits 4.x. As of 2026-11-17 `@qwik.dev/core@latest` is `2.0.0-rc.5`, whose
+`peerDependencies` are `vite: >=8 <9` and `vitest: >=2 <5`. That admits this
+workspace's vitest 4.1.5. The pin stays on `2.0.0-beta.38` until the official
+demo scaffold is remeasured against rc.5; this is still Qwik v2, not a new
+major to park in versionless.
 
 **What covers Qwik in the meantime:**
 
@@ -33,7 +35,7 @@ there is no newer release to move to.
   output, the same third-party-arbiter approach React and Solid use.
 
 **What is still missing:** unit-level browser calibration. The analyzer's mutant
-classes — including `wrong-cancellation` — are only proven to be *detectable* in
+classes — including `wrong-cancellation` — are only proven to be _detectable_ in
 the React and Solid lanes. That gap is not theoretical: it is how
 `findings-003-qwik-async-preventdefault.md` went unnoticed until Qwik's lint
 rules were added.
