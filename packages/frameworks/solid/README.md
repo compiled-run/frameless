@@ -93,7 +93,7 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 
 ## Framework-version honesty
 
-Frameless keeps **both** Solid generations. Solid 2.0.0 became npm `latest` on 2026-11-17; that is too new to park v1 in versionless.
+Frameless keeps **both** Solid generations. Solid 2.0.1 is npm `latest` as of 2026-11-18 (2.0.0 landed 2026-11-17); that is still too new to park v1 in versionless.
 
 | Generation    | How to emit                                 | Runtime lane                                                                   | Status                              |
 | ------------- | ------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------- |
