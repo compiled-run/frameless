@@ -20,7 +20,7 @@ the unsupported runner is. A test whose failures cannot be attributed is not a
 test.
 
 **Unblock condition:** a `@qwik.dev/core` release whose `peerDependencies.vitest`
-admits 4.x. As of 2026-11-18 `@qwik.dev/core@latest` is `2.0.0-rc.5`, whose
+admits 4.x. As of 2026-11-19 `@qwik.dev/core@latest` is `2.0.0-rc.5`, whose
 `peerDependencies` are `vite: >=8 <9` and `vitest: >=2 <5`. That admits this
 workspace's vitest 4.1.5. The pin stays on `2.0.0-beta.38` until the official
 demo scaffold is remeasured against rc.5; this is still Qwik v2, not a new

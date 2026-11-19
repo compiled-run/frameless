@@ -49,7 +49,7 @@ async function betaManifest(): Promise<PackageManifest> {
 
 describe('Solid 2 toolchain blocker contract', () => {
 	test('pins the T003 evidence runtime and its JSX-runtime migration path', async () => {
-		// T003 used Solid 2.0.0-beta.9 as its evidence base; 2.0.1 is the current
+		// T003 used Solid 2.0.0-beta.9 as its evidence base; 2.0.3 is the current
 		// generation-2 pin beside it so emission can track the frozen API.
 		const manifest = await betaManifest();
 		expect(manifest.version).toBe('2.0.0-beta.9');
@@ -62,7 +62,7 @@ describe('Solid 2 toolchain blocker contract', () => {
 		const solid2 = JSON.parse(
 			await readFile(nodeRequire.resolve('solid2/package.json'), 'utf8'),
 		) as PackageManifest;
-		expect(solid2.version).toBe('2.0.1');
+		expect(solid2.version).toBe('2.0.3');
 		expect(Object.keys(solid2.exports)).not.toContain('./web');
 		expect(Object.keys(solid2.exports)).not.toContain('./store');
 	});
