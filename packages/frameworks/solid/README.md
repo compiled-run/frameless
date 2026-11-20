@@ -93,14 +93,14 @@ fixtures, compiler records, or emitter behavior change, refresh these files with
 
 ## Framework-version honesty
 
-Frameless keeps **both** Solid generations. Solid 2.0.3 is npm `latest` as of 2026-11-19 (2.0.0 landed 2026-11-17); that is still too new to park v1 in versionless.
+Frameless keeps **both** Solid generations. Solid 2.0.3 is npm `latest` as of 2026-11-20 (2.0.0 landed 2026-11-17); that is still too new to park v1 in versionless.
 
 | Generation    | How to emit                                 | Runtime lane                                                                   | Status                              |
 | ------------- | ------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------- |
 | `1` (default) | `emit(ir)` or `emit(ir, { generation: 1 })` | `solid-1.8.22-fallback` with `solid-js@1.8.22` and `vite-plugin-solid` 2.11.10 | Browser-validated                   |
 | `2`           | `emit(ir, { generation: 2 })`               | not yet a browser lane                                                         | Node-checked against Solid 2.0 APIs |
 
-npm still publishes Solid 1 as `v1-latest` (`1.9.19`). Move the v1 emitter into versionless only after 2.0 has been stable `latest` for a decent stretch. Until then versionless should classify Solid, not take the v1 emitter.
+npm still publishes Solid 1 as `v1-latest` (`1.9.20`). Move the v1 emitter into versionless only after 2.0 has been stable `latest` for a decent stretch. Until then versionless should classify Solid, not take the v1 emitter.
 
 Generation 2 emission (T003 v2 ledger, now executable):
 
